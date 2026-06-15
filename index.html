@@ -1546,31 +1546,57 @@ let currentPage = 'assets';
 let filteredAssets = [];
 let notifications = [];
 
+// ── Supabase 設定 ─────────────────────────────────────────────
+const SUPABASE_URL = 'https://okznlrxvacptxvgkanhv.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9rem5scnh2YWNwdHh2Z2thbmh2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE1MjQyNjEsImV4cCI6MjA5NzEwMDI2MX0.57Nmjds0GZKIJj4dmRt14Qdjj_j0uMn5-J3mISoaRW4';
+const SB_HEADERS = {
+  'apikey': SUPABASE_KEY,
+  'Authorization': `Bearer ${SUPABASE_KEY}`,
+  'Content-Type': 'application/json',
+  'Prefer': 'resolution=merge-duplicates'
+};
+
+async function sbGet(key) {
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/app_data?key=eq.${key}&select=value`, {headers: SB_HEADERS});
+    const data = await res.json();
+    return data && data[0] ? data[0].value : null;
+  } catch(e) { return null; }
+}
+
+async function sbSet(key, value) {
+  try {
+    await fetch(`${SUPABASE_URL}/rest/v1/app_data`, {
+      method: 'POST',
+      headers: SB_HEADERS,
+      body: JSON.stringify({key, value, updated_at: new Date().toISOString()})
+    });
+  } catch(e) { console.error('Supabase save error:', e); throw e; }
+}
+
 async function loadData() {
   try {
-    // 資產主資料
-    const r = await window.storage.get('assets-v1');
-    if (r && r.value) {
-      const saved = JSON.parse(r.value);
+    const val = await sbGet('assets-v1');
+    if (val) {
+      const saved = JSON.parse(val);
       assets = saved.assets || SEED;
       transfers = saved.transfers || TRANSFER_SEED;
-      nextId = saved.nextId || {"OF-2026":1,"EN-2026":1};
+      nextId = saved.nextId || {};
       notifications = saved.notifications || [];
     } else {
       assets = [...SEED];
       transfers = [...TRANSFER_SEED];
+      await saveData();
     }
   } catch(e) {
     assets = [...SEED];
     transfers = [...TRANSFER_SEED];
   }
 
-  // 報廢紀錄獨立載入（不受主資料更新影響）
   try {
-    const rr = await window.storage.get('retires-v1');
-    if (rr && rr.value) {
-      const savedRetires = JSON.parse(rr.value);
-      // 合併 RETIRE_SEED + 用戶新增的報廢紀錄（去重）
+    const rval = await sbGet('retires-v1');
+    if (rval) {
+      const savedRetires = JSON.parse(rval);
       const seedIds = new Set(RETIRE_SEED.map(x=>x.id));
       const userRetires = savedRetires.filter(x=>!seedIds.has(x.id));
       retires = [...RETIRE_SEED, ...userRetires];
@@ -1587,14 +1613,10 @@ async function loadData() {
 
 async function saveData() {
   try {
-    // 儲存主資料
-    await window.storage.set('assets-v1', JSON.stringify({
-      assets, transfers, nextId, notifications
-    }));
-    // 報廢紀錄獨立儲存
-    await window.storage.set('retires-v1', JSON.stringify(retires));
+    await sbSet('assets-v1', JSON.stringify({assets, transfers, nextId, notifications}));
+    await sbSet('retires-v1', JSON.stringify(retires));
   } catch(e) {
-    console.error('Storage save failed:', e);
+    console.error('Save failed:', e);
     throw e;
   }
 }
