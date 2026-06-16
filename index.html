@@ -575,7 +575,7 @@ select.filter:focus{outline:none}
         <div><div class="page-title">中類別管理</div><div class="page-sub">新增或刪除辦公／工程設備的中類別</div></div>
       </div>
       <div class="content">
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;max-width:800px">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;max-width:800px;margin:0">
 
           <!-- 辦公設備 -->
           <div class="table-wrap">
@@ -2210,6 +2210,9 @@ function renderTransfers() {
   document.getElementById('transfer-tbody').innerHTML=html;
 }
 
+function showTransferModal(){document.getElementById('transfer-modal').style.display='flex';}
+function closeModal(){document.getElementById('transfer-modal').style.display='none';}
+
 function saveTransfer(){
   const no=document.getElementById('t-assetno').value.trim();
   const from=document.getElementById('t-from').value;
@@ -2282,7 +2285,7 @@ function showLineShare(trf, a) {
   overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.7);display:flex;align-items:center;justify-content:center;z-index:998;padding:24px';
 
   const box = document.createElement('div');
-  box.style.cssText = 'background:var(--bg2);border-radius:var(--r2);width:400px;padding:24px;font-family:inherit';
+  box.style.cssText = 'background:var(--bg2);border-radius:var(--r2);width:320px;padding:20px;font-family:inherit';
   box.innerHTML = `
     <div style="font-size:16px;font-weight:700;color:var(--text);margin-bottom:6px">📱 通知 B 地管理員</div>
     <div style="font-size:13px;color:var(--text3);margin-bottom:16px">對方點連結後直接看到入庫按鈕！</div>
