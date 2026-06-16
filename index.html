@@ -2251,7 +2251,10 @@ function showLineShare(trf, a) {
     `📥 調入：${trf.to}\n` +
     `🕐 時間：${trf.datetime}\n` +
     (trf.reason ? `📝 原因：${trf.reason}\n` : '') +
-    `\n👇 點下方連結直接確認入庫：\n${sysUrl}`;
+    `\n━━━━━━━━━━━━\n` +
+    `👇 點下方【完整網址】確認入庫\n` +
+    `⚠️ 請點有 ?trf= 的那個網址\n` +
+    sysUrl;
 
   const lineUrl = `https://line.me/R/msg/text/?${encodeURIComponent(msg)}`;
 
