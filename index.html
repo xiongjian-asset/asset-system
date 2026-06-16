@@ -505,6 +505,25 @@ select.filter:focus{outline:none}
       </div>
       <div class="content">
 
+        <!-- 快速確認入庫 -->
+        <div style="margin-bottom:16px">
+          <div style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:8px;display:flex;align-items:center;gap:8px">
+            📥 輸入調撥單號確認入庫
+          </div>
+          <div class="table-wrap" style="max-width:480px">
+            <div style="padding:14px 16px">
+              <div style="font-size:12px;color:var(--text3);margin-bottom:10px">收到 LINE 通知後，輸入調撥單號查詢並確認入庫</div>
+              <div style="display:flex;gap:8px;margin-bottom:12px">
+                <input type="text" id="trf-lookup-input" placeholder="例：TRF-001"
+                  class="form-input" style="flex:1;font-family:'IBM Plex Mono',monospace"
+                  onkeydown="if(event.key==='Enter') lookupTransfer()">
+                <button class="btn primary" onclick="lookupTransfer()" style="white-space:nowrap">查詢</button>
+              </div>
+              <div id="trf-lookup-result" style="display:none"></div>
+            </div>
+          </div>
+        </div>
+
         <!-- 待確認入庫 -->
         <div id="pending-section" style="margin-bottom:16px">
           <div style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:8px;display:flex;align-items:center;gap:8px">
@@ -2242,7 +2261,7 @@ function saveTransfer(){
 }
 
 function showLineShare(trf, a) {
-  const sysUrl = 'https://xiongjian-asset.github.io/asset-system/?trf=' + trf.id;
+  const sysUrl = 'https://xiongjian-asset.github.io/asset-system/';
   const msg = `【熊建財產調撥通知】\n\n` +
     `📦 調撥單號：${trf.id}\n` +
     `📌 品名：${a.name}\n` +
@@ -2251,10 +2270,7 @@ function showLineShare(trf, a) {
     `📥 調入：${trf.to}\n` +
     `🕐 時間：${trf.datetime}\n` +
     (trf.reason ? `📝 原因：${trf.reason}\n` : '') +
-    `\n━━━━━━━━━━━━\n` +
-    `👇 點下方【完整網址】確認入庫\n` +
-    `⚠️ 請點有 ?trf= 的那個網址\n` +
-    sysUrl;
+    `\n請開啟系統輸入調撥單號確認入庫：\n${sysUrl}`;
 
   const lineUrl = `https://line.me/R/msg/text/?${encodeURIComponent(msg)}`;
 
@@ -2933,6 +2949,47 @@ async function loadCategoryData() {
   } catch(e) {}
 }
 
+function lookupTransfer() {
+  const input = document.getElementById('trf-lookup-input').value.trim().toUpperCase();
+  const result = document.getElementById('trf-lookup-result');
+  if (!input) { alert('請輸入調撥單號'); return; }
+
+  const t = transfers.find(x => x.id === input || x.id.replace('TRF-','') === input);
+  if (!t) {
+    result.style.display = 'block';
+    result.innerHTML = `<div style="padding:12px;background:var(--red-light,#fee2e2);border-radius:var(--r);color:var(--red);font-size:13px">❌ 找不到調撥單號「${input}」，請確認後再試</div>`;
+    return;
+  }
+
+  const statusColor = t.status==='待確認' ? 'var(--amber)' : 'var(--green)';
+  const statusBg = t.status==='待確認' ? '#fef3c7' : '#dcfce7';
+
+  result.style.display = 'block';
+  result.innerHTML = `
+    <div style="border:1px solid var(--border);border-radius:var(--r);overflow:hidden">
+      <div style="padding:10px 14px;background:var(--bg3);border-bottom:1px solid var(--border);font-size:13px;font-weight:700;color:var(--text)">${t.id} 查詢結果</div>
+      <div style="padding:12px 14px;font-size:13px;line-height:2.2">
+        <div style="display:flex;justify-content:space-between"><span style="color:var(--text3)">品名</span><span style="color:var(--text)">${t.name}</span></div>
+        <div style="display:flex;justify-content:space-between"><span style="color:var(--text3)">財產編號</span><span style="font-family:'IBM Plex Mono',monospace;color:var(--blue)">${t.assetNo}</span></div>
+        <div style="display:flex;justify-content:space-between"><span style="color:var(--text3)">調出</span><span style="color:var(--text)">${t.from}</span></div>
+        <div style="display:flex;justify-content:space-between"><span style="color:var(--text3)">調入</span><span style="color:var(--green);font-weight:500">${t.to}</span></div>
+        <div style="display:flex;justify-content:space-between"><span style="color:var(--text3)">時間</span><span style="color:var(--text3);font-size:12px">${t.datetime||t.date}</span></div>
+        <div style="display:flex;justify-content:space-between;align-items:center"><span style="color:var(--text3)">狀態</span>
+          <span style="background:${statusBg};color:${statusColor};border-radius:20px;padding:2px 10px;font-size:11px;font-weight:700">${t.status}</span>
+        </div>
+      </div>
+      ${t.status==='待確認' ? `
+      <div style="padding:12px 14px;border-top:1px solid var(--border)">
+        <button class="btn primary" style="width:100%;padding:10px;font-size:14px" onclick="confirmReceipt('${t.id}');document.getElementById('trf-lookup-result').style.display='none';document.getElementById('trf-lookup-input').value=''">
+          📥 確認入庫
+        </button>
+      </div>` : `
+      <div style="padding:12px 14px;border-top:1px solid var(--border);text-align:center;font-size:13px;color:var(--green)">
+        ✅ 此調撥單已完成入庫
+      </div>`}
+    </div>`;
+}
+
 function resendLine(trfId) {
   const t = transfers.find(x=>x.id===trfId);
   if (!t) return;
@@ -2996,49 +3053,5 @@ function markAllRead() {
 
 // ── Init ──────────────────────────────────────────────────────
 loadCategoryData();
-loadData().then(() => {
-  // 偵測 LINE 點入的調撥單號
-  const params = new URLSearchParams(window.location.search);
-  const trfId = params.get('trf');
-  if (trfId) {
-    nav('transfer');
-    setTimeout(() => showTrfConfirmBanner(trfId), 500);
-  }
-});
-
-function showTrfConfirmBanner(trfId) {
-  const t = transfers.find(x=>x.id===trfId);
-  if (!t) return;
-  if (t.status !== '待確認') {
-    alert(`✅ 調撥單 ${trfId} 已完成入庫！`);
-    return;
-  }
-  const existing = document.getElementById('trf-confirm-banner');
-  if (existing) existing.remove();
-
-  const banner = document.createElement('div');
-  banner.id = 'trf-confirm-banner';
-  banner.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.75);display:flex;align-items:center;justify-content:center;z-index:999;padding:24px';
-  banner.innerHTML = `
-    <div style="background:#fff;border-radius:12px;width:420px;padding:28px;font-family:'Noto Sans TC',sans-serif;text-align:center">
-      <div style="font-size:36px;margin-bottom:8px">📦</div>
-      <div style="font-size:18px;font-weight:700;color:#111;margin-bottom:6px">收到調撥通知</div>
-      <div style="font-size:13px;color:#888;margin-bottom:20px">請確認以下資產已抵達並完成入庫</div>
-      <div style="background:#f8f8f8;border-radius:8px;padding:14px;text-align:left;margin-bottom:20px;font-size:13px;line-height:2;color:#333">
-        <div>📌 <b>品名：</b>${t.name}</div>
-        <div>🔢 <b>財產編號：</b>${t.assetNo}</div>
-        <div>📤 <b>調出：</b>${t.from}</div>
-        <div>📥 <b>調入：</b>${t.to}</div>
-        <div>🕐 <b>時間：</b>${t.datetime||t.date}</div>
-        ${t.reason?`<div>📝 <b>原因：</b>${t.reason}</div>`:''}
-      </div>
-      <div style="display:flex;gap:10px;justify-content:center">
-        <button onclick="document.getElementById('trf-confirm-banner').remove()"
-          style="padding:10px 20px;border-radius:8px;border:1px solid #ddd;background:#fff;color:#555;font-size:14px;cursor:pointer;font-family:inherit">稍後確認</button>
-        <button onclick="confirmReceipt('${trfId}');document.getElementById('trf-confirm-banner').remove()"
-          style="padding:10px 24px;border-radius:8px;border:none;background:#2563eb;color:#fff;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit">📥 確認入庫</button>
-      </div>
-    </div>`;
-  document.body.appendChild(banner);
-}
+loadData();
 </script>
