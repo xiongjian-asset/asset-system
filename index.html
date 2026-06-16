@@ -132,12 +132,17 @@ select.filter:focus{outline:none}
       </div>
       <div class="nav-item" onclick="nav('transfer')">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 014-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 01-4 4H3"/></svg>
-        調撥紀錄
+        調撥作業
+        <span class="nav-badge" id="transfer-pending-badge" style="display:none">0</span>
       </div>
       <div class="nav-sect" style="margin-top:12px">管理</div>
       <div class="nav-item" onclick="nav('retire')">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg>
         報廢紀錄
+      </div>
+      <div class="nav-item" onclick="nav('categories')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 10h16M4 14h16M4 18h16"/></svg>
+        中類別管理
       </div>
     </div>
     <div class="sidebar-footer">
@@ -468,23 +473,62 @@ select.filter:focus{outline:none}
       </div>
     </div>
 
+    <!-- Admin Password Modal -->
+    <div id="admin-modal" class="modal-overlay" style="display:none">
+      <div class="modal" style="width:340px">
+        <div class="modal-head">
+          <div class="modal-title">🔐 管理員驗證</div>
+          <button class="btn" onclick="closeAdminModal()" style="padding:4px 8px">✕</button>
+        </div>
+        <div class="modal-body">
+          <div style="font-size:13px;color:var(--text2);margin-bottom:12px">此功能僅限管理員使用，請輸入密碼：</div>
+          <div class="form-group">
+            <input class="form-input" id="admin-pwd-input" type="password" placeholder="請輸入管理員密碼"
+              onkeydown="if(event.key==='Enter') verifyAdmin()">
+          </div>
+          <div id="admin-pwd-error" style="display:none;font-size:12px;color:var(--red);margin-top:6px">❌ 密碼錯誤，請再試一次</div>
+        </div>
+        <div class="modal-foot">
+          <button class="btn" onclick="closeAdminModal()">取消</button>
+          <button class="btn primary" onclick="verifyAdmin()">✅ 確認</button>
+        </div>
+      </div>
+    </div>
+
     <!-- Transfer -->
     <div id="page-transfer" class="page">
       <div class="topbar">
-        <div><div class="page-title">調撥紀錄</div><div class="page-sub">資產在各專案間的移動記錄</div></div>
+        <div><div class="page-title">調撥作業</div><div class="page-sub">資產調撥申請、確認入庫、歷史紀錄</div></div>
         <div class="topbar-right">
           <button class="btn primary" onclick="showTransferModal()">+ 新增調撥</button>
         </div>
       </div>
       <div class="content">
-        <div class="table-wrap">
-          <table>
-            <thead><tr>
-              <th>調撥單號</th><th>財產編號</th><th>品名</th><th>調出</th><th>調入</th><th>日期</th><th>狀態</th><th>操作</th>
-            </tr></thead>
-            <tbody id="transfer-tbody"></tbody>
-          </table>
+
+        <!-- 待確認入庫 -->
+        <div id="pending-section" style="margin-bottom:16px">
+          <div style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:8px;display:flex;align-items:center;gap:8px">
+            🔴 待確認入庫
+            <span id="pending-count-label" style="background:var(--red);color:#fff;font-size:11px;padding:2px 8px;border-radius:20px">0 筆</span>
+          </div>
+          <div id="pending-transfer-list" class="table-wrap">
+            <div style="padding:16px;text-align:center;color:var(--text3);font-size:13px">目前沒有待確認的調撥</div>
+          </div>
         </div>
+
+        <!-- 調撥紀錄 -->
+        <div>
+          <div style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:8px">📋 調撥紀錄</div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr>
+                <th>調撥單號</th><th>財產編號</th><th>品名</th><th>調出</th><th>調入</th><th>日期</th><th>狀態</th><th>操作</th>
+              </tr></thead>
+              <tbody id="transfer-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+
       </div>
     </div>
 
@@ -506,7 +550,60 @@ select.filter:focus{outline:none}
     </div>
   </div>
 
-  <!-- Retire Reason Modal -->
+    <!-- Categories -->
+    <div id="page-categories" class="page">
+      <div class="topbar">
+        <div><div class="page-title">中類別管理</div><div class="page-sub">新增或刪除辦公／工程設備的中類別</div></div>
+      </div>
+      <div class="content">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;max-width:800px">
+
+          <!-- 辦公設備 -->
+          <div class="table-wrap">
+            <div style="padding:12px 16px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">
+              <span style="font-size:14px;font-weight:700;color:var(--text)">辦公設備（OF）</span>
+              <button class="btn primary" style="font-size:12px;padding:4px 10px" onclick="requireAdmin(()=>showAddCatModal('OF'))">+ 新增</button>
+            </div>
+            <div id="cat-list-OF" style="padding:8px 0"></div>
+          </div>
+
+          <!-- 工程設備 -->
+          <div class="table-wrap">
+            <div style="padding:12px 16px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">
+              <span style="font-size:14px;font-weight:700;color:var(--text)">工程設備（EN）</span>
+              <button class="btn primary" style="font-size:12px;padding:4px 10px" onclick="requireAdmin(()=>showAddCatModal('EN'))">+ 新增</button>
+            </div>
+            <div id="cat-list-EN" style="padding:8px 0"></div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <!-- Add Category Modal -->
+    <div id="cat-modal" class="modal-overlay" style="display:none">
+      <div class="modal" style="width:380px">
+        <div class="modal-head">
+          <div class="modal-title" id="cat-modal-title">新增中類別</div>
+          <button class="btn" onclick="document.getElementById('cat-modal').style.display='none'" style="padding:4px 8px">✕</button>
+        </div>
+        <div class="modal-body">
+          <div class="form-group">
+            <label class="form-label">類別名稱</label>
+            <input class="form-input" id="cat-name-input" placeholder="例：電動工具箱">
+          </div>
+          <div class="form-group" style="margin-top:10px">
+            <label class="form-label">代碼（單一英文字母）</label>
+            <input class="form-input" id="cat-code-input" placeholder="例：Q" maxlength="1" style="text-transform:uppercase">
+            <div style="font-size:11px;color:var(--text3);margin-top:4px">已使用的代碼會自動略過</div>
+          </div>
+        </div>
+        <div class="modal-foot">
+          <button class="btn" onclick="document.getElementById('cat-modal').style.display='none'">取消</button>
+          <button class="btn primary" onclick="saveNewCategory()">✅ 儲存</button>
+        </div>
+      </div>
+    </div>
   <div id="retire-modal" class="modal-overlay" style="display:none">
     <div class="modal" style="width:460px">
       <div class="modal-head">
@@ -1626,6 +1723,7 @@ function updateAll() {
   renderAssets(assets);
   renderTransfers();
   renderRetires();
+  renderCategories();
   const of = assets.filter(a=>a.id.startsWith('OF')).length;
   const en = assets.filter(a=>a.id.startsWith('EN')).length;
   document.getElementById('sf-of').textContent = of;
@@ -1638,7 +1736,7 @@ function nav(page) {
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
   document.getElementById('page-'+page).classList.add('active');
   const items = document.querySelectorAll('.nav-item');
-  const map={assets:0,dashboard:1,add:2,edit:3,transfer:4,retire:5};
+  const map={assets:0,dashboard:1,add:2,edit:3,transfer:4,retire:5,categories:6};
   if(map[page]!==undefined) items[map[page]].classList.add('active');
   currentPage=page;
   if(page==='assets') filterAssets();
@@ -1749,22 +1847,17 @@ function renderAssets(list) {
         </td>
         <td>
           <div style="display:flex;align-items:center;gap:6px">
-          ${a.photo
-            ? `<div style="display:flex;flex-direction:column;gap:4px">
-                <img src="${SUPABASE_URL}/storage/v1/object/public/photos/${a.photo}"
-                  style="width:48px;height:48px;object-fit:cover;border-radius:4px;cursor:pointer;border:1px solid var(--border)"
-                  onclick="viewNetworkPhoto('${a.photo}')"
-                  onerror="this.style.display='none';this.nextSibling.style.display='flex'"
-                  title="點擊放大">
-                <div style="display:none;width:48px;height:48px;background:var(--bg3);border-radius:4px;border:1px solid var(--border);align-items:center;justify-content:center;font-size:10px;color:var(--text3);text-align:center">無法<br>顯示</div>
-                <span style="font-size:10px;color:var(--text3);max-width:80px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${a.photo}">${a.photo}</span>
-              </div>`
-            : `<label style="cursor:pointer;display:inline-flex;flex-direction:column;align-items:center;gap:3px;padding:4px 8px;border-radius:var(--r);border:1px solid var(--border2);font-size:11px;color:var(--text2)">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-                上傳照片
-                <input type="file" accept="image/*" style="display:none" onchange="uploadPhotoToSupabase('${a.id}', this)">
-              </label>`
-          }
+            <img id="photo-${a.id}"
+              src="${SUPABASE_URL}/storage/v1/object/public/photos/${a.id}.jpg"
+              style="width:48px;height:48px;object-fit:cover;border-radius:4px;cursor:pointer;border:1px solid var(--border)"
+              onclick="viewNetworkPhoto('${a.id}.jpg')"
+              onerror="this.style.display='none';document.getElementById('upload-${a.id}').style.display='inline-flex'"
+              title="點擊放大">
+            <label id="upload-${a.id}" style="display:none;cursor:pointer;flex-direction:column;align-items:center;gap:3px;padding:4px 8px;border-radius:var(--r);border:1px solid var(--border2);font-size:11px;color:var(--text2)">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+              上傳照片
+              <input type="file" accept="image/*" style="display:none" onchange="uploadPhotoToSupabase('${a.id}', this)">
+            </label>
           <button onclick="nav('edit');setTimeout(()=>loadEditForm('${a.id}'),50)"
             style="padding:3px 7px;border-radius:var(--r);border:1px solid var(--border2);background:transparent;color:var(--text3);cursor:pointer;font-size:11px;font-family:inherit" title="編輯">✏️</button>
           <button onclick="retireAsset('${a.id}')"
@@ -2035,10 +2128,51 @@ function printRetireSlip(id) {
 
 // ── Transfer ──────────────────────────────────────────────────
 function renderTransfers() {
-  const STATUS={完成:'b-green',進行中:'b-blue',退回:'b-gray'};
+  const STATUS={完成:'b-green',待確認:'b-amber',進行中:'b-blue',退回:'b-gray'};
+
+  // 待確認區塊
+  const pending = transfers.filter(t=>t.status==='待確認');
+  const pendingBadge = document.getElementById('transfer-pending-badge');
+  const pendingLabel = document.getElementById('pending-count-label');
+  if (pendingBadge) { pendingBadge.textContent=pending.length; pendingBadge.style.display=pending.length?'inline-block':'none'; }
+  if (pendingLabel) pendingLabel.textContent = `${pending.length} 筆`;
+
+  const pendingList = document.getElementById('pending-transfer-list');
+  if (pendingList) {
+    if (!pending.length) {
+      pendingList.innerHTML = '<div style="padding:16px;text-align:center;color:var(--text3);font-size:13px">✅ 目前沒有待確認的調撥</div>';
+    } else {
+      let phtml = '<table style="width:100%;border-collapse:collapse"><thead><tr style="background:var(--bg3)">';
+      ['調撥單號','財產編號','品名','調出 → 調入','時間','操作'].forEach(h=>{
+        phtml += `<th style="padding:8px 12px;font-size:12px;color:var(--text3);text-align:left;border-bottom:1px solid var(--border)">${h}</th>`;
+      });
+      phtml += '</tr></thead><tbody>';
+      pending.forEach(t=>{
+        phtml += `<tr style="background:#fffbeb">
+          <td style="padding:10px 12px;font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--blue);border-bottom:1px solid var(--border)">${t.id}</td>
+          <td style="padding:10px 12px;font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--teal);border-bottom:1px solid var(--border)">${t.assetNo}</td>
+          <td style="padding:10px 12px;font-size:13px;color:var(--text);border-bottom:1px solid var(--border)">${t.name}</td>
+          <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid var(--border)">
+            <span class="tag">${t.from}</span><span style="margin:0 4px;color:var(--text3)">→</span><span class="tag" style="border-color:var(--green)">${t.to}</span>
+          </td>
+          <td style="padding:10px 12px;font-size:12px;color:var(--text3);border-bottom:1px solid var(--border)">${t.datetime||t.date}</td>
+          <td style="padding:10px 12px;border-bottom:1px solid var(--border)">
+            <div style="display:flex;gap:6px">
+              <button class="btn primary" style="padding:4px 12px;font-size:12px" onclick="confirmReceipt('${t.id}')">📥 確認入庫</button>
+              <button class="btn" style="padding:4px 8px;font-size:12px;background:#06C755;border-color:#06C755;color:#fff" onclick="resendLine('${t.id}')">LINE</button>
+            </div>
+          </td>
+        </tr>`;
+      });
+      phtml += '</tbody></table>';
+      pendingList.innerHTML = phtml;
+    }
+  }
+
+  // 全部調撥紀錄（最新在前）
   let html='';
-  if(!transfers.length){html='<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--text3)">尚無調撥紀錄</td></tr>';}
-  else transfers.forEach(t=>{
+  if(!transfers.length){html='<tr><td colspan="8" style="text-align:center;padding:24px;color:var(--text3)">尚無調撥紀錄</td></tr>';}
+  else [...transfers].reverse().forEach(t=>{
     html+=`<tr>
       <td class="mono" style="color:var(--blue)">${t.id}</td>
       <td class="mono" style="color:var(--teal)">${t.assetNo}</td>
@@ -2048,18 +2182,15 @@ function renderTransfers() {
       <td style="color:var(--text3)">${t.datetime||t.date}</td>
       <td><span class="badge ${STATUS[t.status]||'b-gray'}">${t.status}</span></td>
       <td style="display:flex;gap:6px">
-        ${t.status==='待確認'
-          ? `<button class="btn primary" style="padding:3px 10px;font-size:12px" onclick="confirmReceipt('${t.id}')">✅ 確認收件</button>`
-          : ''}
+        ${t.status==='待確認'?`<button class="btn primary" style="padding:3px 10px;font-size:12px" onclick="confirmReceipt('${t.id}')">📥 確認入庫</button>`:''}
         <button class="btn" style="padding:3px 8px;font-size:12px" onclick="reprintSlip('${t.id}')">🖨 補印</button>
+        <button class="btn" style="padding:3px 8px;font-size:12px;background:#06C755;border-color:#06C755;color:#fff" onclick="resendLine('${t.id}')">LINE</button>
       </td>
     </tr>`;
   });
   document.getElementById('transfer-tbody').innerHTML=html;
 }
 
-function showTransferModal(){document.getElementById('transfer-modal').style.display='flex';}
-function closeModal(){document.getElementById('transfer-modal').style.display='none';}
 function saveTransfer(){
   const no=document.getElementById('t-assetno').value.trim();
   const from=document.getElementById('t-from').value;
@@ -2105,6 +2236,52 @@ function saveTransfer(){
 
   closeModal(); saveData(); updateAll(); renderNotifications();
   printTransferSlip(trf, a);
+
+  // 📱 顯示 LINE 分享
+  showLineShare(trf, a);
+}
+
+function showLineShare(trf, a) {
+  const sysUrl = window.location.href.split('?')[0];
+  const msg = `【熊建財產調撥通知】\n\n` +
+    `📦 調撥單號：${trf.id}\n` +
+    `📌 品名：${a.name}\n` +
+    `🔢 財產編號：${trf.assetNo}\n` +
+    `📤 調出：${trf.from}\n` +
+    `📥 調入：${trf.to}\n` +
+    `🕐 時間：${trf.datetime}\n` +
+    (trf.reason ? `📝 原因：${trf.reason}\n` : '') +
+    `\n請至系統確認收件：\n${sysUrl}`;
+
+  const lineUrl = `https://line.me/R/msg/text/?${encodeURIComponent(msg)}`;
+
+  const existing = document.getElementById('line-share-modal');
+  if (existing) existing.remove();
+
+  const overlay = document.createElement('div');
+  overlay.id = 'line-share-modal';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.7);display:flex;align-items:center;justify-content:center;z-index:998;padding:24px';
+
+  const box = document.createElement('div');
+  box.style.cssText = 'background:var(--bg2);border-radius:var(--r2);width:400px;padding:24px;font-family:inherit';
+  box.innerHTML = `
+    <div style="font-size:16px;font-weight:700;color:var(--text);margin-bottom:6px">📱 通知 B 地管理員</div>
+    <div style="font-size:13px;color:var(--text3);margin-bottom:16px">調撥完成！點下方按鈕透過 LINE 通知對方確認收件</div>
+    <div style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);padding:12px;font-size:12px;color:var(--text2);line-height:1.8;margin-bottom:16px;white-space:pre-wrap">${msg}</div>
+    <div style="display:flex;gap:8px;justify-content:flex-end">
+      <button onclick="document.getElementById('line-share-modal').remove()" 
+        style="padding:8px 16px;border-radius:var(--r);border:1px solid var(--border2);background:transparent;color:var(--text2);cursor:pointer;font-size:13px;font-family:inherit">稍後再說</button>
+      <a href="${lineUrl}" target="_blank"
+        style="padding:8px 20px;border-radius:var(--r);background:#06C755;color:#fff;font-size:14px;font-weight:700;text-decoration:none;display:inline-flex;align-items:center;gap:6px"
+        onclick="setTimeout(()=>document.getElementById('line-share-modal').remove(),1000)">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.02 2 11c0 3.13 1.65 5.9 4.2 7.6L5 22l4.3-1.4C10.4 21.2 11.2 21.4 12 21.4c5.52 0 10-4.02 10-9S17.52 2 12 2z"/></svg>
+        LINE 傳送通知
+      </a>
+    </div>`;
+
+  overlay.appendChild(box);
+  overlay.addEventListener('click', e=>{ if(e.target===overlay) overlay.remove(); });
+  document.body.appendChild(overlay);
 }
 
 function printTransferSlip(t, a) {
@@ -2458,15 +2635,11 @@ const PHOTO_BASE = `${SUPABASE_URL}/storage/v1/object/public/photos/`;
 async function uploadPhotoToSupabase(id, input) {
   const file = input.files[0];
   if (!file) return;
-  const a = assets.find(x=>x.id===id);
-  if (!a) return;
 
-  // 用財產編號命名
   const ext = file.name.split('.').pop().toLowerCase();
   const filename = `${id}.${ext}`;
 
   try {
-    // 上傳到 Supabase Storage
     const res = await fetch(`${SUPABASE_URL}/storage/v1/object/photos/${filename}`, {
       method: 'POST',
       headers: {
@@ -2479,10 +2652,19 @@ async function uploadPhotoToSupabase(id, input) {
     });
 
     if (res.ok) {
-      a.photo = filename;
-      await saveData();
-      renderAssets(filteredAssets.length ? filteredAssets : assets);
-      alert(`✅ 照片上傳成功！檔名：${filename}`);
+      // 更新照片顯示
+      const img = document.getElementById(`photo-${id}`);
+      const uploadBtn = document.getElementById(`upload-${id}`);
+      if (img) {
+        img.src = `${SUPABASE_URL}/storage/v1/object/public/photos/${filename}?t=${Date.now()}`;
+        img.style.display = 'block';
+        img.onclick = () => viewNetworkPhoto(filename);
+      }
+      if (uploadBtn) uploadBtn.style.display = 'none';
+
+      // 更新資產資料
+      const a = assets.find(x=>x.id===id);
+      if (a) { a.photo = filename; await saveData(); }
     } else {
       alert('❌ 上傳失敗，請再試一次');
     }
@@ -2507,12 +2689,7 @@ function viewNetworkPhoto(filename) {
   overlay.id = 'photo-view-modal';
   overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.85);display:flex;align-items:center;justify-content:center;z-index:999;flex-direction:column;gap:12px';
   overlay.innerHTML = `
-    <img src="${url}"
-      style="max-width:90vw;max-height:80vh;border-radius:8px;box-shadow:0 8px 32px rgba(0,0,0,.5)"
-      onerror="this.style.display='none';document.getElementById('photo-err').style.display='block'">
-    <div id="photo-err" style="display:none;color:#fff;font-size:14px;text-align:center">
-      ⚠️ 無法顯示照片
-    </div>
+    <img src="${url}" style="max-width:90vw;max-height:80vh;border-radius:8px;box-shadow:0 8px 32px rgba(0,0,0,.5)">
     <div style="display:flex;align-items:center;gap:16px">
       <span style="color:#fff;font-size:12px;opacity:.6">${filename}</span>
       <button onclick="closePhotoModal()" style="padding:6px 18px;background:#fff;color:#111;border:none;border-radius:6px;font-size:13px;cursor:pointer;font-family:inherit">✕ 關閉</button>
@@ -2576,18 +2753,201 @@ function viewPhoto(id) {
   document.body.appendChild(overlay);
 }
 
+// ── Admin Auth ────────────────────────────────────────────────
+const ADMIN_PWD = '27703593'; // ← 你的管理員密碼，可修改
+let adminVerified = false;
+let pendingAdminAction = null;
+
+function requireAdmin(action) {
+  if (adminVerified) {
+    action();
+    return;
+  }
+  pendingAdminAction = action;
+  document.getElementById('admin-pwd-input').value = '';
+  document.getElementById('admin-pwd-error').style.display = 'none';
+  document.getElementById('admin-modal').style.display = 'flex';
+  setTimeout(() => document.getElementById('admin-pwd-input').focus(), 100);
+}
+
+function verifyAdmin() {
+  const pwd = document.getElementById('admin-pwd-input').value;
+  if (pwd === ADMIN_PWD) {
+    adminVerified = true;
+    document.getElementById('admin-modal').style.display = 'none';
+    // 30分鐘後重置驗證
+    setTimeout(() => { adminVerified = false; }, 30 * 60 * 1000);
+    if (pendingAdminAction) {
+      pendingAdminAction();
+      pendingAdminAction = null;
+    }
+  } else {
+    document.getElementById('admin-pwd-error').style.display = 'block';
+    document.getElementById('admin-pwd-input').value = '';
+    document.getElementById('admin-pwd-input').focus();
+  }
+}
+
+function closeAdminModal() {
+  document.getElementById('admin-modal').style.display = 'none';
+  pendingAdminAction = null;
+}
+
+// ── Category Management ───────────────────────────────────────
+let currentCatType = 'OF';
+
+function renderCategories() {
+  ['OF','EN'].forEach(type => {
+    const map = type==='OF' ? OF_SUB_MAP : EN_SUB_MAP;
+    const el = document.getElementById(`cat-list-${type}`);
+    if (!el) return;
+    let html = '';
+    Object.entries(map).forEach(([name, code]) => {
+      html += `<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 16px;border-bottom:1px solid var(--border)">
+        <div>
+          <span style="font-size:13px;color:var(--text)">${name}</span>
+          <span style="font-size:11px;color:var(--text3);margin-left:8px;font-family:'IBM Plex Mono',monospace">${type}${code}</span>
+        </div>
+        <div style="display:flex;gap:6px">
+          <button onclick="requireAdmin(()=>editCategory('${type}','${name}','${code}'))"
+            style="padding:2px 8px;border-radius:var(--r);border:1px solid var(--border2);background:transparent;color:var(--text2);cursor:pointer;font-size:11px;font-family:inherit">✏️ 編輯</button>
+          <button onclick="requireAdmin(()=>deleteCategory('${type}','${name}'))"
+            style="padding:2px 8px;border-radius:var(--r);border:1px solid #fca5a5;background:transparent;color:var(--red);cursor:pointer;font-size:11px;font-family:inherit">🗑 刪除</button>
+        </div>
+      </div>`;
+    });
+    el.innerHTML = html || '<div style="padding:12px 16px;color:var(--text3);font-size:12px">尚無類別</div>';
+  });
+}
+
+function editCategory(type, oldName, oldCode) {
+  currentCatType = type;
+  document.getElementById('cat-modal-title').textContent = `編輯${type==='OF'?'辦公':'工程'}設備中類別`;
+  document.getElementById('cat-name-input').value = oldName;
+  document.getElementById('cat-code-input').value = oldCode;
+  // 標記為編輯模式
+  document.getElementById('cat-modal').dataset.editOldName = oldName;
+  document.getElementById('cat-modal').dataset.editOldCode = oldCode;
+  document.getElementById('cat-modal').dataset.mode = 'edit';
+  document.getElementById('cat-modal').style.display = 'flex';
+}
+
+function showAddCatModal(type) {
+  currentCatType = type;
+  document.getElementById('cat-modal-title').textContent = `新增${type==='OF'?'辦公':'工程'}設備中類別`;
+  document.getElementById('cat-name-input').value = '';
+  document.getElementById('cat-code-input').value = '';
+  document.getElementById('cat-modal').dataset.mode = 'add';
+  document.getElementById('cat-modal').style.display = 'flex';
+}
+
+function saveNewCategory() {
+  const name = document.getElementById('cat-name-input').value.trim();
+  let code = document.getElementById('cat-code-input').value.trim().toUpperCase();
+  if (!name) { alert('請填寫類別名稱'); return; }
+
+  const map = currentCatType==='OF' ? OF_SUB_MAP : EN_SUB_MAP;
+  const modal = document.getElementById('cat-modal');
+  const mode = modal.dataset.mode;
+
+  if (mode === 'edit') {
+    const oldName = modal.dataset.editOldName;
+    const oldCode = modal.dataset.editOldCode;
+    // 如果名稱改變，更新所有使用該類別的資產
+    if (oldName !== name) {
+      assets.forEach(a => { if (a.sub === oldName) a.sub = name; });
+    }
+    // 刪除舊的，加入新的
+    delete map[oldName];
+    map[name] = code || oldCode;
+    alert(`✅ 已更新「${oldName}」→「${name}」`);
+  } else {
+    // 新增模式
+    if (map[name]) { alert(`「${name}」已存在！`); return; }
+    if (!code) {
+      const used = new Set(Object.values(map));
+      for (let i = 65; i <= 90; i++) {
+        const c = String.fromCharCode(i);
+        if (!used.has(c)) { code = c; break; }
+      }
+    }
+    if (!code) { alert('代碼已用完，請手動指定'); return; }
+    map[name] = code;
+    alert(`✅ 已新增「${name}」，代碼：${currentCatType}${code}`);
+  }
+
+  modal.style.display = 'none';
+  updateSubcatDropdowns();
+  renderCategories();
+  saveCategoryData();
+  saveData();
+}
+
+function deleteCategory(type, name) {
+  const map = type==='OF' ? OF_SUB_MAP : EN_SUB_MAP;
+  // 檢查是否有資產使用此類別
+  const inUse = assets.some(a=>a.sub===name);
+  if (inUse) { alert(`⚠️ 「${name}」目前有資產使用，無法刪除！`); return; }
+  if (!confirm(`確定刪除「${name}」？`)) return;
+  delete map[name];
+  updateSubcatDropdowns();
+  renderCategories();
+  saveCategoryData();
+}
+
+function updateSubcatDropdowns() {
+  // 更新新增資產的中類下拉
+  const subcat = document.getElementById('f-subcat');
+  if (subcat) {
+    const allOF = Object.keys(OF_SUB_MAP);
+    const allEN = Object.keys(EN_SUB_MAP);
+    subcat.innerHTML = [...allOF, ...allEN].map(n=>`<option>${n}</option>`).join('');
+  }
+  // 更新依類別篩選下拉
+  const filterSub = document.getElementById('filter-sub');
+  if (filterSub) {
+    filterSub.innerHTML = `<option value="">依類別</option>
+      <optgroup label="辦公設備">${Object.keys(OF_SUB_MAP).map(n=>`<option>${n}</option>`).join('')}</optgroup>
+      <optgroup label="工程設備">${Object.keys(EN_SUB_MAP).map(n=>`<option>${n}</option>`).join('')}</optgroup>`;
+  }
+}
+
+async function saveCategoryData() {
+  try {
+    await sbSet('categories-v1', JSON.stringify({OF: OF_SUB_MAP, EN: EN_SUB_MAP}));
+  } catch(e) { console.error('Category save error:', e); }
+}
+
+async function loadCategoryData() {
+  try {
+    const val = await sbGet('categories-v1');
+    if (val) {
+      const saved = JSON.parse(val);
+      if (saved.OF) Object.assign(OF_SUB_MAP, saved.OF);
+      if (saved.EN) Object.assign(EN_SUB_MAP, saved.EN);
+      updateSubcatDropdowns();
+    }
+  } catch(e) {}
+}
+
+function resendLine(trfId) {
+  const t = transfers.find(x=>x.id===trfId);
+  if (!t) return;
+  const a = assets.find(x=>x.id===t.assetNo);
+  showLineShare(t, a || {name: t.name, accessory: ''});
+}
+
 // ── Confirm Receipt ───────────────────────────────────────────
 function confirmReceipt(trfId) {
   const t = transfers.find(x => x.id === trfId);
   if (!t) return;
-  if (!confirm(`確認「${t.name}」(${t.assetNo}) 已由 ${t.from} 移交至 ${t.to}？`)) return;
+  if (!confirm(`確認「${t.name}」(${t.assetNo}) 已抵達 ${t.to} 並入庫？`)) return;
   t.status = '完成';
   const a = assets.find(x => x.id === t.assetNo);
   if (a) { a.proj = t.to; a.status = '在庫'; }
-  // 標記相關通知為已讀
   notifications.filter(n=>n.trfId===trfId).forEach(n=>n.read=true);
   saveData(); updateAll(); renderNotifications();
-  alert(`✅ 收件確認完成！「${t.name}」已更新至 ${t.to}，資產解除鎖定。`);
+  alert(`✅ 入庫完成！「${t.name}」已更新至 ${t.to}。`);
 }
 
 // ── Notifications ─────────────────────────────────────────────
@@ -2632,5 +2992,6 @@ function markAllRead() {
 }
 
 // ── Init ──────────────────────────────────────────────────────
+loadCategoryData();
 loadData();
 </script>
