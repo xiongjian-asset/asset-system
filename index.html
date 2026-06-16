@@ -2242,7 +2242,7 @@ function saveTransfer(){
 }
 
 function showLineShare(trf, a) {
-  const sysUrl = window.location.href.split('?')[0];
+  const sysUrl = 'https://xiongjian-asset.github.io/asset-system/?trf=' + trf.id;
   const msg = `【熊建財產調撥通知】\n\n` +
     `📦 調撥單號：${trf.id}\n` +
     `📌 品名：${a.name}\n` +
@@ -2251,7 +2251,7 @@ function showLineShare(trf, a) {
     `📥 調入：${trf.to}\n` +
     `🕐 時間：${trf.datetime}\n` +
     (trf.reason ? `📝 原因：${trf.reason}\n` : '') +
-    `\n請至系統確認收件：\n${sysUrl}`;
+    `\n👇 點下方連結直接確認入庫：\n${sysUrl}`;
 
   const lineUrl = `https://line.me/R/msg/text/?${encodeURIComponent(msg)}`;
 
@@ -2266,10 +2266,10 @@ function showLineShare(trf, a) {
   box.style.cssText = 'background:var(--bg2);border-radius:var(--r2);width:400px;padding:24px;font-family:inherit';
   box.innerHTML = `
     <div style="font-size:16px;font-weight:700;color:var(--text);margin-bottom:6px">📱 通知 B 地管理員</div>
-    <div style="font-size:13px;color:var(--text3);margin-bottom:16px">調撥完成！點下方按鈕透過 LINE 通知對方確認收件</div>
+    <div style="font-size:13px;color:var(--text3);margin-bottom:16px">對方點連結後直接看到入庫按鈕！</div>
     <div style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);padding:12px;font-size:12px;color:var(--text2);line-height:1.8;margin-bottom:16px;white-space:pre-wrap">${msg}</div>
     <div style="display:flex;gap:8px;justify-content:flex-end">
-      <button onclick="document.getElementById('line-share-modal').remove()" 
+      <button onclick="document.getElementById('line-share-modal').remove()"
         style="padding:8px 16px;border-radius:var(--r);border:1px solid var(--border2);background:transparent;color:var(--text2);cursor:pointer;font-size:13px;font-family:inherit">稍後再說</button>
       <a href="${lineUrl}" target="_blank"
         style="padding:8px 20px;border-radius:var(--r);background:#06C755;color:#fff;font-size:14px;font-weight:700;text-decoration:none;display:inline-flex;align-items:center;gap:6px"
@@ -2993,5 +2993,49 @@ function markAllRead() {
 
 // ── Init ──────────────────────────────────────────────────────
 loadCategoryData();
-loadData();
+loadData().then(() => {
+  // 偵測 LINE 點入的調撥單號
+  const params = new URLSearchParams(window.location.search);
+  const trfId = params.get('trf');
+  if (trfId) {
+    nav('transfer');
+    setTimeout(() => showTrfConfirmBanner(trfId), 500);
+  }
+});
+
+function showTrfConfirmBanner(trfId) {
+  const t = transfers.find(x=>x.id===trfId);
+  if (!t) return;
+  if (t.status !== '待確認') {
+    alert(`✅ 調撥單 ${trfId} 已完成入庫！`);
+    return;
+  }
+  const existing = document.getElementById('trf-confirm-banner');
+  if (existing) existing.remove();
+
+  const banner = document.createElement('div');
+  banner.id = 'trf-confirm-banner';
+  banner.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.75);display:flex;align-items:center;justify-content:center;z-index:999;padding:24px';
+  banner.innerHTML = `
+    <div style="background:#fff;border-radius:12px;width:420px;padding:28px;font-family:'Noto Sans TC',sans-serif;text-align:center">
+      <div style="font-size:36px;margin-bottom:8px">📦</div>
+      <div style="font-size:18px;font-weight:700;color:#111;margin-bottom:6px">收到調撥通知</div>
+      <div style="font-size:13px;color:#888;margin-bottom:20px">請確認以下資產已抵達並完成入庫</div>
+      <div style="background:#f8f8f8;border-radius:8px;padding:14px;text-align:left;margin-bottom:20px;font-size:13px;line-height:2;color:#333">
+        <div>📌 <b>品名：</b>${t.name}</div>
+        <div>🔢 <b>財產編號：</b>${t.assetNo}</div>
+        <div>📤 <b>調出：</b>${t.from}</div>
+        <div>📥 <b>調入：</b>${t.to}</div>
+        <div>🕐 <b>時間：</b>${t.datetime||t.date}</div>
+        ${t.reason?`<div>📝 <b>原因：</b>${t.reason}</div>`:''}
+      </div>
+      <div style="display:flex;gap:10px;justify-content:center">
+        <button onclick="document.getElementById('trf-confirm-banner').remove()"
+          style="padding:10px 20px;border-radius:8px;border:1px solid #ddd;background:#fff;color:#555;font-size:14px;cursor:pointer;font-family:inherit">稍後確認</button>
+        <button onclick="confirmReceipt('${trfId}');document.getElementById('trf-confirm-banner').remove()"
+          style="padding:10px 24px;border-radius:8px;border:none;background:#2563eb;color:#fff;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit">📥 確認入庫</button>
+      </div>
+    </div>`;
+  document.body.appendChild(banner);
+}
 </script>
