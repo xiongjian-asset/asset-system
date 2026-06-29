@@ -2555,7 +2555,7 @@ function fallbackCopy(msg, cb) {
 }
 
 function showBatchLineShare(trfList, to) {
-  const sysUrl = 'https://xiongjian-asset.github.io/asset-system/';
+  const sysUrl = 'https://xiongjian-asset.github.io/asset-system/?page=transfer';
   const batchId = trfList[0] ? trfList[0].batchId : '';
   const itemLines = trfList.map(t=>`・${t.assetNo} ${t.name}`).join('\n');
   const msg = `【熊建財產批次調撥通知】\n\n` +
@@ -2599,7 +2599,7 @@ function showBatchLineShare(trfList, to) {
 }
 
 function showLineShare(trf, a) {
-  const sysUrl = 'https://xiongjian-asset.github.io/asset-system/';
+  const sysUrl = 'https://xiongjian-asset.github.io/asset-system/?page=transfer';
   const msg = `【熊建財產調撥通知】\n\n` +
     `📦 調撥單號：${trf.id}\n` +
     `📌 品名：${a.name}\n` +
@@ -3551,7 +3551,7 @@ function confirmReceipt(trfId) {
 }
 
 function showLineReceiptNotify(t) {
-  const sysUrl = 'https://xiongjian-asset.github.io/asset-system/';
+  const sysUrl = 'https://xiongjian-asset.github.io/asset-system/?page=transfer';
   const msg = `【熊建財產入庫完成通知】\n\n` +
     `✅ 已確認入庫！\n\n` +
     `📦 調撥單號：${t.id}\n` +
@@ -3639,5 +3639,17 @@ function markAllRead() {
 
 // ── Init ──────────────────────────────────────────────────────
 loadCategoryData();
-loadData();
+loadData().then(() => {
+  // 偵測網址參數，若從 LINE 通知連結點入，直接開啟調撥作業頁面並聚焦查詢框
+  try {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('page') === 'transfer') {
+      nav('transfer');
+      setTimeout(() => {
+        const input = document.getElementById('trf-lookup-input');
+        if (input) input.focus();
+      }, 100);
+    }
+  } catch(e) {}
+});
 </script>
