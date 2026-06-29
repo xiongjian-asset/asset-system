@@ -221,13 +221,17 @@ select.filter:focus{outline:none}
       <div class="topbar">
         <div><div class="page-title">財產清冊</div><div class="page-sub" id="asset-list-sub">每件設備獨立編號</div></div>
         <div class="topbar-right">
-          <button class="btn" onclick="showMigrateModal()">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/></svg>
-            更正舊編號
+          <button class="btn" onclick="printAssetList()">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+            列印
           </button>
-          <button class="btn" onclick="exportCSV()">
+          <button class="btn" onclick="printLabels()">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.59 13.41L11 4H4v7l9.59 9.59a2 2 0 002.82 0l4.18-4.18a2 2 0 000-2.82z"/><circle cx="7.5" cy="7.5" r="1"/></svg>
+            列印標籤
+          </button>
+          <button class="btn" onclick="exportExcel()">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-            匯出 CSV
+            下載 Excel
           </button>
           <button class="btn primary" onclick="nav('add')">+ 新增</button>
         </div>
@@ -270,7 +274,11 @@ select.filter:focus{outline:none}
       </div>
       <div id="selection-bar" style="display:none;padding:8px 20px;background:var(--blue);color:#fff;font-size:13px;display:none;align-items:center;gap:12px">
         <span id="selection-count">已選取 0 件</span>
-        <button class="btn" onclick="clearSelection()" style="padding:3px 10px;font-size:12px;border-color:rgba(255,255,255,.4);color:#fff">取消選取</button>
+        <button class="btn primary" onclick="showBatchTransferModal()" style="padding:3px 12px;font-size:12px;background:#fff;color:var(--blue);font-weight:700">🔄 批次調撥</button>
+        <button class="btn" onclick="printAssetList()" style="padding:3px 10px;font-size:12px;border-color:rgba(255,255,255,.4);color:#fff">🖨 列印已選取</button>
+        <button class="btn" onclick="printLabels()" style="padding:3px 10px;font-size:12px;border-color:rgba(255,255,255,.4);color:#fff">🏷️ 列印標籤</button>
+        <button class="btn" onclick="exportExcel()" style="padding:3px 10px;font-size:12px;border-color:rgba(255,255,255,.4);color:#fff">📥 下載已選取</button>
+        <button class="btn" onclick="clearSelection()" style="padding:3px 10px;font-size:12px;border-color:rgba(255,255,255,.4);color:#fff;margin-left:auto">取消選取</button>
       </div>
       <div class="content" style="padding:0;overflow:hidden;display:flex;flex-direction:column">
         <div class="table-wrap" style="border:none;border-radius:0">
@@ -422,11 +430,9 @@ select.filter:focus{outline:none}
                 <input class="form-input" id="e-keeper">
               </div>
               <div class="form-group">
-                <label class="form-label">專案</label>
-                <select class="form-input" id="e-proj">
-                  <option>潮州</option><option>屏辦</option><option>高辦</option>
-                  <option>金威銓</option><option>神通書院</option><option>明發</option>
-                </select>
+                <label class="form-label">專案（請改用調撥作業變更）</label>
+                <div id="e-proj-display" style="padding:7px 10px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);font-size:14px;color:var(--text3)">—</div>
+                <input type="hidden" id="e-proj">
               </div>
               <div class="form-group">
                 <label class="form-label">位置</label>
@@ -667,36 +673,6 @@ select.filter:focus{outline:none}
     </div>
   </div>
 
-  <!-- Migrate Modal -->
-  <div id="migrate-modal" class="modal-overlay" style="display:none">
-    <div class="modal" style="width:520px">
-      <div class="modal-head">
-        <div class="modal-title">🔄 更正舊編號格式</div>
-        <button class="btn" onclick="closeMigrateModal()" style="padding:4px 8px">✕</button>
-      </div>
-      <div class="modal-body">
-        <div style="font-size:13px;color:var(--text2);margin-bottom:12px">
-          將舊格式（<span style="font-family:'IBM Plex Mono',monospace;color:var(--blue)">OF-0001</span>）更正為含年份格式（<span style="font-family:'IBM Plex Mono',monospace;color:var(--green)">OF-2024-0001</span>）。
-        </div>
-        <div style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);padding:10px 14px;margin-bottom:14px;font-size:12px;color:var(--amber)">
-          ⚠️ 年份依據各資產的購入日期自動判斷，無購入日期者請選擇預設年份。
-        </div>
-        <div class="form-group" style="margin-bottom:12px">
-          <label class="form-label">無購入日期的資產，預設歸入哪一年？</label>
-          <select class="form-input" id="migrate-year" style="max-width:160px">
-            <option>2022</option><option>2023</option><option selected>2024</option><option>2025</option><option>2026</option>
-          </select>
-        </div>
-        <div id="migrate-preview" style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);padding:10px 14px;max-height:220px;overflow-y:auto;font-family:'IBM Plex Mono',monospace;font-size:12px;line-height:2"></div>
-      </div>
-      <div class="modal-foot">
-        <button class="btn" onclick="previewMigration()">預覽變更</button>
-        <button class="btn primary" id="migrate-confirm-btn" onclick="runMigration()" style="display:none">✅ 確認更正</button>
-        <button class="btn" onclick="closeMigrateModal()">取消</button>
-      </div>
-    </div>
-  </div>
-
   <!-- Transfer Modal -->
   <div id="transfer-modal" class="modal-overlay" style="display:none">
     <div class="modal">
@@ -734,6 +710,43 @@ select.filter:focus{outline:none}
       <div class="modal-foot">
         <button class="btn" onclick="closeModal()">取消</button>
         <button class="btn primary" id="t-confirm-btn" onclick="saveTransfer()">確認調撥</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Batch Transfer Modal -->
+  <div id="batch-transfer-modal" class="modal-overlay" style="display:none">
+    <div class="modal" style="width:520px">
+      <div class="modal-head">
+        <div class="modal-title">🔄 批次調撥</div>
+        <button class="btn" onclick="closeBatchTransferModal()" style="padding:4px 8px">✕</button>
+      </div>
+      <div class="modal-body">
+        <div id="batch-transfer-list" style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);padding:10px 14px;max-height:180px;overflow-y:auto;margin-bottom:14px;font-size:12px;line-height:2"></div>
+
+        <div id="batch-transfer-warning" style="display:none;background:#fef3c7;border:1px solid #f59e0b;border-radius:var(--r);padding:8px 12px;margin-bottom:14px;font-size:12px;color:#92400e"></div>
+
+        <div class="form-grid">
+          <div class="form-group">
+            <label class="form-label">調出專案</label>
+            <div id="batch-from-display" style="padding:7px 10px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);font-size:14px;color:var(--text3)">—</div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">調入專案</label>
+            <select class="form-input" id="batch-t-to">
+              <option>潮州</option><option>屏辦</option><option>高辦</option>
+              <option>金威銓</option><option>神通書院</option><option>明發</option><option>全鴻</option>
+            </select>
+          </div>
+          <div class="form-group form-full">
+            <label class="form-label">調撥原因</label>
+            <input class="form-input" id="batch-t-reason" placeholder="原因說明（適用於全部勾選項目）">
+          </div>
+        </div>
+      </div>
+      <div class="modal-foot">
+        <button class="btn" onclick="closeBatchTransferModal()">取消</button>
+        <button class="btn primary" id="batch-confirm-btn" onclick="saveBatchTransfer()">確認批次調撥</button>
       </div>
     </div>
   </div>
@@ -1821,7 +1834,7 @@ function renderAssets(list) {
   if(!list.length){
     html=`<tr><td colspan="8" style="text-align:center;padding:30px;color:var(--text3)">沒有符合條件的資產</td></tr>`;
   } else {
-    list.slice(0,200).forEach(a=>{
+    list.forEach(a=>{
       html+=`<tr>
         <td><input type="checkbox" class="row-check" data-id="${a.id}" onchange="updateSelection()" style="width:16px;height:16px;cursor:pointer;accent-color:var(--blue)"></td>
         <td><span class="tag">${a.sub||a.cat}</span></td>
@@ -2176,7 +2189,9 @@ function renderTransfers() {
       phtml += '</tr></thead><tbody>';
       pending.forEach(t=>{
         phtml += `<tr style="background:#fffbeb">
-          <td style="padding:10px 12px;font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--blue);border-bottom:1px solid var(--border)">${t.id}</td>
+          <td style="padding:10px 12px;font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--blue);border-bottom:1px solid var(--border)">
+            ${t.id}${t.batchId?`<br><span style="font-size:10px;color:var(--text3);background:var(--bg3);padding:1px 6px;border-radius:8px">${t.batchId}</span>`:''}
+          </td>
           <td style="padding:10px 12px;font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--teal);border-bottom:1px solid var(--border)">${t.assetNo}</td>
           <td style="padding:10px 12px;font-size:13px;color:var(--text);border-bottom:1px solid var(--border)">${t.name}</td>
           <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid var(--border)">
@@ -2246,6 +2261,10 @@ function showTransferModal(){
   document.getElementById('t-from-display').style.color='var(--text3)';
   document.getElementById('t-from').value='';
   document.getElementById('t-reason').value='';
+}
+
+function closeModal(){
+  document.getElementById('transfer-modal').style.display='none';
 }
 
 async function saveTransfer(){
@@ -2320,6 +2339,225 @@ async function saveTransfer(){
     btn.disabled = false;
     btn.textContent = '確認調撥';
   }
+}
+
+// ── Batch Transfer ────────────────────────────────────────────
+let batchTransferIds = [];
+
+function getNextBatchId() {
+  const nums = transfers
+    .filter(t => t.batchId)
+    .map(t => parseInt(t.batchId.replace('BATCH-','')) || 0);
+  const max = nums.length ? Math.max(...nums) : 0;
+  return 'BATCH-' + String(max + 1).padStart(3,'0');
+}
+
+function showBatchTransferModal() {
+  const checkedIds = Array.from(document.querySelectorAll('.row-check:checked')).map(c=>c.dataset.id);
+  if (!checkedIds.length) { alert('請先在財產清冊勾選要調撥的資產'); return; }
+
+  const selectedAssets = assets.filter(a => checkedIds.includes(a.id));
+
+  // 檢查狀態：排除已調出中或已報廢的
+  const blocked = selectedAssets.filter(a => a.status==='調出中' || a.status==='報廢');
+  const valid = selectedAssets.filter(a => a.status!=='調出中' && a.status!=='報廢');
+
+  if (!valid.length) {
+    alert('⚠️ 勾選的資產全部都在調出中或已報廢，無法調撥！');
+    return;
+  }
+
+  // 檢查是否來自同一個專案
+  const projs = new Set(valid.map(a=>a.proj));
+  const warningEl = document.getElementById('batch-transfer-warning');
+
+  if (projs.size > 1) {
+    warningEl.style.display = 'block';
+    warningEl.innerHTML = `⚠️ 勾選的資產分屬不同專案（${[...projs].join('、')}），系統將以<b>第一筆「${valid[0].proj}」</b>為調出專案。建議分開調撥比較準確。`;
+  } else {
+    warningEl.style.display = 'none';
+  }
+
+  if (blocked.length) {
+    const blockedNames = blocked.map(a=>`${a.id}（${a.status}）`).join('、');
+    warningEl.style.display = 'block';
+    warningEl.innerHTML += (warningEl.innerHTML ? '<br>' : '') + `⚠️ 以下資產已排除：${blockedNames}`;
+  }
+
+  batchTransferIds = valid.map(a=>a.id);
+
+  const listHtml = valid.map(a=>`
+    <div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid var(--border)">
+      <span><span style="font-family:'IBM Plex Mono',monospace;color:var(--blue)">${a.id}</span> ${a.name}</span>
+      <span style="color:var(--text3)">${a.proj}</span>
+    </div>
+  `).join('');
+  document.getElementById('batch-transfer-list').innerHTML =
+    `<div style="font-weight:700;margin-bottom:6px">共 ${valid.length} 筆資產：</div>${listHtml}`;
+
+  document.getElementById('batch-from-display').textContent = `📍 ${valid[0].proj}`;
+  document.getElementById('batch-t-reason').value = '';
+  document.getElementById('batch-transfer-modal').style.display = 'flex';
+}
+
+function closeBatchTransferModal() {
+  document.getElementById('batch-transfer-modal').style.display = 'none';
+  batchTransferIds = [];
+}
+
+async function saveBatchTransfer() {
+  if (!batchTransferIds.length) return;
+  const btn = document.getElementById('batch-confirm-btn');
+  if (btn.disabled) return;
+  btn.disabled = true;
+  btn.textContent = '處理中…';
+
+  try {
+    const to = document.getElementById('batch-t-to').value;
+    const reason = document.getElementById('batch-t-reason').value;
+    const now = new Date();
+    const today = now.toISOString().slice(0,10);
+    const timeStr = now.toLocaleString('zh-TW', {year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false}).replace(/\//g,'-');
+
+    const createdTransfers = [];
+    const batchId = getNextBatchId();
+
+    batchTransferIds.forEach(id => {
+      const a = assets.find(x=>x.id===id);
+      if (!a || a.status==='調出中' || a.status==='報廢') return; // 雙重保險
+
+      const from = a.proj;
+      const trfId = 'TRF-' + String(transfers.length + createdTransfers.length + 1).padStart(3,'0');
+      const trf = {id:trfId, assetNo:id, name:a.name, from, to, date:today, datetime:timeStr, status:'待確認', reason, batchId};
+      transfers.push(trf);
+      createdTransfers.push(trf);
+
+      a.status = '調出中';
+
+      notifications.unshift({
+        id: 'NTF-' + String(notifications.length+1).padStart(3,'0'),
+        type:'transfer', trfId, assetNo:id, name:a.name, from, to,
+        date: timeStr, read:false,
+        msg: `【批次調撥】${from} 已將「${a.name}」(${id}) 調撥至 ${to}，請確認收件。`
+      });
+    });
+
+    closeBatchTransferModal();
+    clearSelection();
+    filterAssets();
+    updateAll();
+    renderNotifications();
+
+    try {
+      await saveData();
+    } catch(saveErr) {
+      alert('⚠️ 資料儲存失敗，請檢查網路連線後重新整理頁面確認！\n錯誤：' + saveErr.message);
+    }
+
+    // 顯示批次調撥單摘要，再進入 LINE 分享
+    showBatchTransferSlip(createdTransfers, to, () => showBatchLineShare(createdTransfers, to));
+
+  } catch(err) {
+    alert('❌ 批次調撥失敗：' + err.message);
+    console.error('saveBatchTransfer error:', err);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '確認批次調撥';
+  }
+}
+
+function showBatchTransferSlip(trfList, to, onClose) {
+  const existing = document.getElementById('batch-print-modal');
+  if (existing) existing.remove();
+  const batchId = trfList[0] ? trfList[0].batchId : '';
+
+  const overlay = document.createElement('div');
+  overlay.id = 'batch-print-modal';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.8);display:flex;align-items:center;justify-content:center;z-index:999;overflow-y:auto;padding:24px';
+
+  const closeAndCallback = () => { overlay.remove(); if (typeof onClose==='function') onClose(); };
+
+  const rowsHtml = trfList.map((t,i)=>`
+    <tr>
+      <td style="border:1px solid #ccc;padding:6px 10px;font-size:12px">${i+1}</td>
+      <td style="border:1px solid #ccc;padding:6px 10px;font-family:monospace;font-size:12px">${t.id}</td>
+      <td style="border:1px solid #ccc;padding:6px 10px;font-family:monospace;font-size:12px;color:#2563eb">${t.assetNo}</td>
+      <td style="border:1px solid #ccc;padding:6px 10px;font-size:13px">${t.name}</td>
+    </tr>`).join('');
+
+  const slip = document.createElement('div');
+  slip.style.cssText = 'background:#fff;border-radius:12px;width:560px;max-width:95vw;padding:32px;color:#111;font-family:"Noto Sans TC",sans-serif;font-size:14px';
+  slip.innerHTML = `
+    <div style="text-align:center;margin-bottom:20px">
+      <div style="font-size:20px;font-weight:700;letter-spacing:2px">批 次 調 撥 單</div>
+      <div style="background:#dbeafe;border-radius:8px;padding:8px 16px;margin-top:10px;display:inline-block">
+        <span style="font-size:12px;color:#1d4ed8">批次單號</span>
+        <span style="font-size:18px;font-weight:700;color:#1d4ed8;font-family:monospace;margin-left:8px">${batchId}</span>
+      </div>
+      <div style="font-size:12px;color:#888;margin-top:8px">共 ${trfList.length} 筆　調入：<b>${to}</b></div>
+    </div>
+    <table style="width:100%;border-collapse:collapse;margin-bottom:20px">
+      <thead><tr style="background:#f5f5f5">
+        <th style="border:1px solid #ccc;padding:6px 10px;font-size:11px">#</th>
+        <th style="border:1px solid #ccc;padding:6px 10px;font-size:11px">調撥單號</th>
+        <th style="border:1px solid #ccc;padding:6px 10px;font-size:11px">財產編號</th>
+        <th style="border:1px solid #ccc;padding:6px 10px;font-size:11px">品名</th>
+      </tr></thead>
+      <tbody>${rowsHtml}</tbody>
+    </table>
+    <div style="background:#fef3c7;border-radius:8px;padding:10px 14px;font-size:12px;color:#92400e;margin-bottom:20px">
+      💡 對方只需輸入<b>批次單號 ${batchId}</b>，即可一次確認全部 ${trfList.length} 筆入庫
+    </div>
+    <div class="no-print" style="display:flex;justify-content:center;gap:12px">
+      <button onclick="window.print()" style="padding:8px 24px;background:#111;color:#fff;border:none;border-radius:6px;font-size:14px;cursor:pointer;font-family:inherit">🖨 列印</button>
+      <button id="batch-print-close-btn" style="padding:8px 24px;background:#eee;color:#333;border:none;border-radius:6px;font-size:14px;cursor:pointer;font-family:inherit">${onClose ? '下一步：通知對方' : '關閉'}</button>
+    </div>`;
+
+  overlay.appendChild(slip);
+  document.body.appendChild(overlay);
+  document.getElementById('batch-print-close-btn').addEventListener('click', closeAndCallback);
+  overlay.addEventListener('click', e=>{ if(e.target===overlay) closeAndCallback(); });
+}
+
+function showBatchLineShare(trfList, to) {
+  const sysUrl = 'https://xiongjian-asset.github.io/asset-system/';
+  const batchId = trfList[0] ? trfList[0].batchId : '';
+  const itemLines = trfList.map(t=>`・${t.assetNo} ${t.name}`).join('\n');
+  const msg = `【熊建財產批次調撥通知】\n\n` +
+    `📦 批次單號：${batchId}\n` +
+    `📥 調入專案：${to}\n` +
+    `共 ${trfList.length} 筆：\n${itemLines}\n\n` +
+    `請開啟系統，輸入「批次單號」一次確認全部入庫：\n${sysUrl}`;
+
+  const lineUrl = `https://line.me/R/msg/text/?${encodeURIComponent(msg)}`;
+
+  const existing = document.getElementById('line-share-modal');
+  if (existing) existing.remove();
+
+  const overlay = document.createElement('div');
+  overlay.id = 'line-share-modal';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.7);display:flex;align-items:center;justify-content:center;z-index:998;padding:24px';
+
+  const box = document.createElement('div');
+  box.style.cssText = 'background:var(--bg2);border-radius:var(--r2);width:320px;padding:20px;font-family:inherit';
+  box.innerHTML = `
+    <div style="font-size:16px;font-weight:700;color:var(--text);margin-bottom:6px">📱 通知管理員</div>
+    <div style="font-size:13px;color:var(--text3);margin-bottom:14px">批次調撥完成！通知對方確認入庫</div>
+    <div style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);padding:10px 12px;font-size:12px;color:var(--text2);line-height:1.7;margin-bottom:14px;white-space:pre-wrap;max-height:200px;overflow-y:auto">${msg}</div>
+    <div style="display:flex;gap:8px;justify-content:flex-end">
+      <button onclick="document.getElementById('line-share-modal').remove()"
+        style="padding:7px 14px;border-radius:var(--r);border:1px solid var(--border2);background:transparent;color:var(--text2);cursor:pointer;font-size:13px;font-family:inherit">稍後再說</button>
+      <a href="${lineUrl}" target="_blank"
+        style="padding:7px 18px;border-radius:var(--r);background:#06C755;color:#fff;font-size:13px;font-weight:700;text-decoration:none;display:inline-flex;align-items:center;gap:6px"
+        onclick="setTimeout(()=>document.getElementById('line-share-modal').remove(),1000)">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.02 2 11c0 3.13 1.65 5.9 4.2 7.6L5 22l4.3-1.4C10.4 21.2 11.2 21.4 12 21.4c5.52 0 10-4.02 10-9S17.52 2 12 2z"/></svg>
+        LINE 傳送通知
+      </a>
+    </div>`;
+
+  overlay.appendChild(box);
+  overlay.addEventListener('click', e=>{ if(e.target===overlay) overlay.remove(); });
+  document.body.appendChild(overlay);
 }
 
 function showLineShare(trf, a) {
@@ -2462,85 +2700,167 @@ function renderRetires(){
   document.getElementById('retire-tbody').innerHTML=html;
 }
 
-// ── Migration ─────────────────────────────────────────────────
-let migrationMap = {};
-
-function isOldId(id) {
-  return /^(OF|EN)-\d{4}$/.test(id);
-}
-
-function buildNewId(oldId, year) {
-  const match = oldId.match(/^(OF|EN)-(\d{4})$/);
-  if (!match) return oldId;
-  return `${match[1]}-${year}-${match[2]}`;
-}
-
-function showMigrateModal() {
-  const oldAssets = assets.filter(a => isOldId(a.id));
-  if (!oldAssets.length) {
-    alert('✅ 所有資產編號已是新格式，無需更正！');
-    return;
-  }
-  document.getElementById('migrate-modal').style.display = 'flex';
-  document.getElementById('migrate-preview').innerHTML = `<span style="color:var(--text3)">點擊「預覽變更」查看即將更正的編號…</span>`;
-  document.getElementById('migrate-confirm-btn').style.display = 'none';
-}
-
-function closeMigrateModal() {
-  document.getElementById('migrate-modal').style.display = 'none';
-  migrationMap = {};
-}
-
-function previewMigration() {
-  const fallbackYear = document.getElementById('migrate-year').value;
-  const oldAssets = assets.filter(a => isOldId(a.id));
-  migrationMap = {};
-  let html = '';
-  oldAssets.forEach(a => {
-    const year = a.date ? a.date.slice(0,4) : fallbackYear;
-    const newId = buildNewId(a.id, year);
-    migrationMap[a.id] = newId;
-    html += `<div><span style="color:var(--red)">${a.id}</span> → <span style="color:var(--green)">${newId}</span> <span style="color:var(--text3);font-family:'Noto Sans TC',sans-serif;font-size:11px">${a.name}</span></div>`;
-  });
-  document.getElementById('migrate-preview').innerHTML = html || '<span style="color:var(--green)">無需更正的舊編號</span>';
-  document.getElementById('migrate-confirm-btn').style.display = oldAssets.length ? 'inline-flex' : 'none';
-}
-
-function runMigration() {
-  if (!Object.keys(migrationMap).length) return;
-  // 更新 assets
-  assets.forEach(a => {
-    if (migrationMap[a.id]) a.id = migrationMap[a.id];
-  });
-  // 更新 transfers
-  transfers.forEach(t => {
-    if (migrationMap[t.assetNo]) t.assetNo = migrationMap[t.assetNo];
-  });
-  // 更新 retires
-  retires.forEach(r => {
-    if (migrationMap[r.id]) r.id = migrationMap[r.id];
-  });
-  // 更新 notifications
-  notifications.forEach(n => {
-    if (migrationMap[n.assetNo]) n.assetNo = migrationMap[n.assetNo];
-  });
-  const count = Object.keys(migrationMap).length;
-  migrationMap = {};
-  saveData(); updateAll();
-  closeMigrateModal();
-  alert(`✅ 已成功更正 ${count} 筆資產編號為新格式！`);
-}
-
 // ── Export ────────────────────────────────────────────────────
-function exportCSV(){
-  const list=filteredAssets.length?filteredAssets:assets;
-  const hdr=['財產編號','品名','商品大類','商品中類','保管人','專案','位置','單價','狀態','購入日','備註'];
-  const rows=list.map(a=>[a.id,a.name,a.cat,a.sub,a.keeper,a.proj,a.loc,a.price,a.status,a.date,a.note]);
-  const csv=[hdr,...rows].map(r=>r.map(v=>`"${String(v||'').replace(/"/g,'""')}"`).join(',')).join('\n');
-  const blob=new Blob(['\ufeff'+csv],{type:'text/csv;charset=utf-8'});
-  const url=URL.createObjectURL(blob);
-  const a=document.createElement('a');
-  a.href=url;a.download='財產清冊.csv';a.click();
+function exportExcel(){
+  const checkedIds = Array.from(document.querySelectorAll('.row-check:checked')).map(c=>c.dataset.id);
+  let list;
+  if (checkedIds.length > 0) {
+    list = assets.filter(a => checkedIds.includes(a.id));
+  } else {
+    list = filteredAssets.length ? filteredAssets : assets;
+  }
+  const hdr = ['類別','財產編號','品名','配件','數量','保管人','專案','位置','狀態','購入日期','購入金額(未稅)','購入廠商','備註'];
+  const rows = list.map(a=>[
+    a.sub||a.cat, a.id, a.name, a.accessory||'', a.qty||1, a.keeper||'',
+    a.proj, a.loc||'', a.status, a.date||'', a.price||0, a.vendor||'', a.note||''
+  ]);
+
+  if (typeof XLSX === 'undefined') {
+    // 若 SheetJS 尚未載入，動態載入後再執行
+    const script = document.createElement('script');
+    script.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+    script.onload = () => doExportExcel(hdr, rows);
+    document.head.appendChild(script);
+  } else {
+    doExportExcel(hdr, rows);
+  }
+}
+
+function doExportExcel(hdr, rows) {
+  const ws = XLSX.utils.aoa_to_sheet([hdr, ...rows]);
+  ws['!cols'] = hdr.map(()=>({wch:14}));
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, '財產清冊');
+  const today = new Date().toISOString().slice(0,10);
+  XLSX.writeFile(wb, `財產清冊_${today}.xlsx`);
+}
+
+function printAssetList() {
+  // 優先使用勾選的資產，沒勾選則使用目前篩選結果
+  const checkedIds = Array.from(document.querySelectorAll('.row-check:checked')).map(c=>c.dataset.id);
+  let list;
+  if (checkedIds.length > 0) {
+    list = assets.filter(a => checkedIds.includes(a.id));
+  } else {
+    list = filteredAssets.length ? filteredAssets : assets;
+  }
+
+  const today = new Date().toLocaleDateString('zh-TW');
+
+  const win = window.open('', '_blank');
+  let rowsHtml = list.map((a,i)=>{
+    const photoUrl = `${SUPABASE_URL}/storage/v1/object/public/photos/${a.id}.jpg`;
+    return `
+    <tr>
+      <td>${i+1}</td>
+      <td>
+        <img src="${photoUrl}" style="width:64px;height:64px;object-fit:cover;border-radius:4px;border:1px solid #ddd"
+          onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+        <div style="display:none;width:64px;height:64px;background:#f5f5f5;border:1px solid #ddd;border-radius:4px;align-items:center;justify-content:center;font-size:10px;color:#aaa">無圖</div>
+      </td>
+      <td>${a.sub||a.cat}</td>
+      <td style="font-family:monospace">${a.id}</td>
+      <td>${a.name}${a.accessory?`<br><span style="font-size:10px;color:#888">配件：${a.accessory}</span>`:''}</td>
+      <td style="text-align:center">${a.qty||1}</td>
+      <td>${a.keeper||'未指定'}</td>
+      <td>${a.proj}</td>
+      <td>${a.loc||'—'}</td>
+      <td>${a.date||'—'}</td>
+    </tr>`;
+  }).join('');
+
+  win.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8">
+    <title>財產清冊</title>
+    <style>
+      *{box-sizing:border-box;font-family:'Microsoft JhengHei',sans-serif}
+      @page{ size: A4 portrait; margin: 15mm 12mm; }
+      body{padding:0;color:#111}
+      h1{font-size:20px;margin-bottom:4px}
+      .sub{font-size:12px;color:#666;margin-bottom:16px}
+      table{width:100%;border-collapse:collapse;font-size:11px}
+      th,td{border:1px solid #ccc;padding:8px 6px;text-align:left;vertical-align:middle}
+      th{background:#f0f0f0;font-weight:700}
+      tr{page-break-inside:avoid}
+      @media print{ body{padding:0} }
+    </style>
+    </head><body>
+    <h1>熊建財產清冊</h1>
+    <div class="sub">列印日期：${today}　${checkedIds.length>0?`已勾選 ${list.length} 件`:`共 ${list.length} 件`}</div>
+    <table>
+      <thead><tr>
+        <th>#</th><th>照片</th><th>類別</th><th>財產編號</th><th>品名/配件</th><th>數量</th>
+        <th>保管人</th><th>專案</th><th>位置</th><th>購入日期</th>
+      </tr></thead>
+      <tbody>${rowsHtml}</tbody>
+    </table>
+    <script>window.onload=()=>window.print()<\/script>
+    </body></html>`);
+  win.document.close();
+}
+
+function printLabels() {
+  const checkedIds = Array.from(document.querySelectorAll('.row-check:checked')).map(c=>c.dataset.id);
+  let list;
+  if (checkedIds.length > 0) {
+    list = assets.filter(a => checkedIds.includes(a.id));
+  } else {
+    list = filteredAssets.length ? filteredAssets : assets;
+  }
+  if (!list.length) { alert('沒有可列印的資產'); return; }
+
+  // 依照標籤貼紙規格：3欄 x 10列，每張 66mm x 27.5mm
+  const labelsHtml = list.map(a => `
+    <div class="label">
+      <div class="label-row"><span class="label-key">財產名稱：</span><span class="label-val">${a.name}</span></div>
+      <div class="label-row"><span class="label-key">財產編號：</span><span class="label-val mono">${a.id}</span></div>
+      <div class="label-row"><span class="label-key">購入日期：</span><span class="label-val">${a.date||'—'}</span></div>
+    </div>`).join('');
+
+  // 補滿整頁空白格（每頁30格），維持版面整齊
+  const remainder = list.length % 30;
+  const blanksNeeded = remainder === 0 ? 0 : (30 - remainder);
+  const blanksHtml = Array.from({length: blanksNeeded}).map(()=>'<div class="label label-blank"></div>').join('');
+
+  const win = window.open('', '_blank');
+  win.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8">
+    <title>財產標籤</title>
+    <style>
+      *{box-sizing:border-box;margin:0;padding:0;font-family:'Microsoft JhengHei',sans-serif}
+      @page{ size: A4 portrait; margin: 11mm 7mm 0mm 7mm; }
+      body{ }
+      .sheet{
+        display:grid;
+        grid-template-columns: repeat(3, 66mm);
+        grid-auto-rows: 27.5mm;
+      }
+      .label{
+        width:66mm; height:27.5mm;
+        padding:2mm 3mm;
+        box-sizing:border-box;
+        display:flex;
+        flex-direction:column;
+        justify-content:center;
+        gap:1.5mm;
+        page-break-inside:avoid;
+      }
+      .label-row{ font-size:9.5pt; line-height:1.3; white-space:nowrap; overflow:hidden; text-overflow:ellipsis }
+      .label-key{ color:#333; font-weight:700 }
+      .label-val{ color:#000 }
+      .mono{ font-family:'Courier New',monospace }
+      .label-blank{ }
+      /* 螺幕上顯示淺色格線方便對位；實際列印不顯示 */
+      @media screen{
+        .label{ border:1px dashed #ccc }
+      }
+      @media print{
+        .label{ border:none }
+      }
+    </style>
+    </head><body>
+    <div class="sheet">${labelsHtml}${blanksHtml}</div>
+    <script>window.onload=()=>window.print()<\/script>
+    </body></html>`);
+  win.document.close();
 }
 
 // ── Edit Asset ────────────────────────────────────────────────
@@ -2574,6 +2894,7 @@ function loadEditForm(id) {
   document.getElementById('e-name').value = a.name||'';
   document.getElementById('e-keeper').value = a.keeper||'';
   document.getElementById('e-proj').value = a.proj||'';
+  document.getElementById('e-proj-display').textContent = `📍 ${a.proj}`;
   document.getElementById('e-loc').value = a.loc||'';
   document.getElementById('e-status').value = a.status||'在庫';
   document.getElementById('e-qty').value = a.qty||1;
@@ -3020,7 +3341,13 @@ async function loadCategoryData() {
 function lookupTransfer() {
   const input = document.getElementById('trf-lookup-input').value.trim().toUpperCase();
   const result = document.getElementById('trf-lookup-result');
-  if (!input) { alert('請輸入調撥單號'); return; }
+  if (!input) { alert('請輸入調撥單號或批次單號'); return; }
+
+  // 判斷是否為批次單號
+  if (input.startsWith('BATCH')) {
+    lookupBatchTransfer(input);
+    return;
+  }
 
   const t = transfers.find(x => x.id === input || x.id.replace('TRF-','') === input);
   if (!t) {
@@ -3035,7 +3362,10 @@ function lookupTransfer() {
   result.style.display = 'block';
   result.innerHTML = `
     <div style="border:1px solid var(--border);border-radius:var(--r);overflow:hidden">
-      <div style="padding:10px 14px;background:var(--bg3);border-bottom:1px solid var(--border);font-size:13px;font-weight:700;color:var(--text)">${t.id} 查詢結果</div>
+      <div style="padding:10px 14px;background:var(--bg3);border-bottom:1px solid var(--border);font-size:13px;font-weight:700;color:var(--text);display:flex;justify-content:space-between">
+        <span>${t.id} 查詢結果</span>
+        ${t.batchId?`<span style="font-size:11px;color:var(--text3);font-weight:400">屬於批次 ${t.batchId}</span>`:''}
+      </div>
       <div style="padding:12px 14px;font-size:13px;line-height:2.2">
         <div style="display:flex;justify-content:space-between"><span style="color:var(--text3)">品名</span><span style="color:var(--text)">${t.name}</span></div>
         <div style="display:flex;justify-content:space-between"><span style="color:var(--text3)">財產編號</span><span style="font-family:'IBM Plex Mono',monospace;color:var(--blue)">${t.assetNo}</span></div>
@@ -3056,6 +3386,62 @@ function lookupTransfer() {
         ✅ 此調撥單已完成入庫
       </div>`}
     </div>`;
+}
+
+function lookupBatchTransfer(batchId) {
+  const result = document.getElementById('trf-lookup-result');
+  const items = transfers.filter(t => t.batchId === batchId);
+
+  if (!items.length) {
+    result.style.display = 'block';
+    result.innerHTML = `<div style="padding:12px;background:var(--red-light,#fee2e2);border-radius:var(--r);color:var(--red);font-size:13px">❌ 找不到批次單號「${batchId}」，請確認後再試</div>`;
+    return;
+  }
+
+  const pending = items.filter(t => t.status==='待確認');
+  const done = items.filter(t => t.status!=='待確認');
+
+  const itemRows = items.map(t => `
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border);font-size:12px">
+      <span><span style="font-family:'IBM Plex Mono',monospace;color:var(--blue)">${t.assetNo}</span> ${t.name}</span>
+      <span style="color:${t.status==='待確認'?'var(--amber)':'var(--green)'};font-weight:700">${t.status}</span>
+    </div>`).join('');
+
+  result.style.display = 'block';
+  result.innerHTML = `
+    <div style="border:1px solid var(--border);border-radius:var(--r);overflow:hidden">
+      <div style="padding:10px 14px;background:var(--bg3);border-bottom:1px solid var(--border);font-size:13px;font-weight:700;color:var(--text)">
+        ${batchId} 查詢結果　<span style="font-size:11px;color:var(--text3);font-weight:400">共 ${items.length} 筆 / 調入 ${items[0].to}</span>
+      </div>
+      <div style="padding:10px 14px;max-height:220px;overflow-y:auto">${itemRows}</div>
+      ${pending.length ? `
+      <div style="padding:12px 14px;border-top:1px solid var(--border)">
+        <button class="btn primary" style="width:100%;padding:10px;font-size:14px" onclick="confirmBatchReceipt('${batchId}')">
+          📥 一次確認全部 ${pending.length} 筆入庫
+        </button>
+      </div>` : `
+      <div style="padding:12px 14px;border-top:1px solid var(--border);text-align:center;font-size:13px;color:var(--green)">
+        ✅ 此批次全部已完成入庫
+      </div>`}
+    </div>`;
+}
+
+function confirmBatchReceipt(batchId) {
+  const items = transfers.filter(t => t.batchId === batchId && t.status==='待確認');
+  if (!items.length) return;
+  if (!confirm(`確認批次「${batchId}」共 ${items.length} 筆資產已抵達 ${items[0].to} 並入庫？`)) return;
+
+  items.forEach(t => {
+    t.status = '完成';
+    const a = assets.find(x => x.id === t.assetNo);
+    if (a) { a.proj = t.to; a.status = '在庫'; }
+    notifications.filter(n=>n.trfId===t.id).forEach(n=>n.read=true);
+  });
+
+  saveData(); updateAll(); renderNotifications();
+  document.getElementById('trf-lookup-result').style.display = 'none';
+  document.getElementById('trf-lookup-input').value = '';
+  alert(`✅ 批次入庫完成！共 ${items.length} 筆已更新至 ${items[0].to}。`);
 }
 
 function resendLine(trfId) {
