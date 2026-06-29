@@ -2053,10 +2053,13 @@ function confirmRetire() {
   // 從清冊移除
   assets = assets.filter(x=>x.id!==id);
 
-  // 加入報廢紀錄
+  // 加入報廢紀錄（保留完整資產資訊以便日後還原）
   const rec = {
     id, name:a.name, proj:a.proj, reason, flow,
-    price:a.price, date_purchase:a.date, keeper:a.keeper,
+    cat:a.cat, sub:a.sub, qty:a.qty||1,
+    keeper:a.keeper, loc:a.loc, vendor:a.vendor,
+    price:a.price, date_purchase:a.date,
+    accessory:a.accessory, note:a.note,
     date:new Date().toISOString().slice(0,10)
   };
   retires.push(rec);
@@ -2087,7 +2090,7 @@ function printRetireSlip(id) {
   const y=today.getFullYear(), mo=String(today.getMonth()+1).padStart(2,'0'), d=String(today.getDate()).padStart(2,'0');
   const overlay = document.createElement('div');
   overlay.id = 'retire-print-modal';
-  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.8);display:flex;align-items:center;justify-content:center;z-index:999;overflow-y:auto;padding:24px';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.8);display:flex;align-items:flex-start;justify-content:center;z-index:999;overflow-y:auto;padding:24px';
   const slip = document.createElement('div');
   slip.style.cssText = 'background:#fff;border-radius:12px;width:640px;max-width:95vw;padding:24px 40px 40px;color:#111;font-family:"Noto Sans TC","Microsoft JhengHei",sans-serif;font-size:14px';
   const chk = (cond) => `<span style="width:16px;height:16px;border:2px solid #333;border-radius:3px;display:inline-flex;align-items:center;justify-content:center;font-size:11px;flex-shrink:0">${cond?'✓':''}</span>`;
@@ -2519,6 +2522,38 @@ function showBatchTransferSlip(trfList, to, onClose) {
   overlay.addEventListener('click', e=>{ if(e.target===overlay) closeAndCallback(); });
 }
 
+// ── Clipboard Helper ──────────────────────────────────────────
+function copyMsgToClipboard(msg, btnEl) {
+  const doCopy = () => {
+    const original = btnEl.textContent;
+    btnEl.textContent = '✅ 已複製！';
+    btnEl.style.background = '#16a34a';
+    btnEl.style.color = '#fff';
+    setTimeout(() => {
+      btnEl.textContent = original;
+      btnEl.style.background = '';
+      btnEl.style.color = '';
+    }, 1800);
+  };
+
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(msg).then(doCopy).catch(() => fallbackCopy(msg, doCopy));
+  } else {
+    fallbackCopy(msg, doCopy);
+  }
+}
+
+function fallbackCopy(msg, cb) {
+  const ta = document.createElement('textarea');
+  ta.value = msg;
+  ta.style.position = 'fixed';
+  ta.style.opacity = '0';
+  document.body.appendChild(ta);
+  ta.select();
+  try { document.execCommand('copy'); cb(); } catch(e) { alert('複製失敗，請手動選取文字複製'); }
+  document.body.removeChild(ta);
+}
+
 function showBatchLineShare(trfList, to) {
   const sysUrl = 'https://xiongjian-asset.github.io/asset-system/';
   const batchId = trfList[0] ? trfList[0].batchId : '';
@@ -2544,7 +2579,9 @@ function showBatchLineShare(trfList, to) {
     <div style="font-size:16px;font-weight:700;color:var(--text);margin-bottom:6px">📱 通知管理員</div>
     <div style="font-size:13px;color:var(--text3);margin-bottom:14px">批次調撥完成！通知對方確認入庫</div>
     <div style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);padding:10px 12px;font-size:12px;color:var(--text2);line-height:1.7;margin-bottom:14px;white-space:pre-wrap;max-height:200px;overflow-y:auto">${msg}</div>
-    <div style="display:flex;gap:8px;justify-content:flex-end">
+    <div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap">
+      <button id="copy-btn-batch" onclick="copyMsgToClipboard(${JSON.stringify(msg)}, document.getElementById('copy-btn-batch'))"
+        style="padding:7px 14px;border-radius:var(--r);border:1px solid var(--border2);background:transparent;color:var(--text2);cursor:pointer;font-size:13px;font-family:inherit">📋 複製訊息</button>
       <button onclick="document.getElementById('line-share-modal').remove()"
         style="padding:7px 14px;border-radius:var(--r);border:1px solid var(--border2);background:transparent;color:var(--text2);cursor:pointer;font-size:13px;font-family:inherit">稍後再說</button>
       <a href="${lineUrl}" target="_blank"
@@ -2587,7 +2624,9 @@ function showLineShare(trf, a) {
     <div style="font-size:16px;font-weight:700;color:var(--text);margin-bottom:6px">📱 通知 B 地管理員</div>
     <div style="font-size:13px;color:var(--text3);margin-bottom:16px">對方點連結後直接看到入庫按鈕！</div>
     <div style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);padding:12px;font-size:12px;color:var(--text2);line-height:1.8;margin-bottom:16px;white-space:pre-wrap">${msg}</div>
-    <div style="display:flex;gap:8px;justify-content:flex-end">
+    <div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap">
+      <button id="copy-btn-single" onclick="copyMsgToClipboard(${JSON.stringify(msg)}, document.getElementById('copy-btn-single'))"
+        style="padding:8px 14px;border-radius:var(--r);border:1px solid var(--border2);background:transparent;color:var(--text2);cursor:pointer;font-size:13px;font-family:inherit">📋 複製訊息</button>
       <button onclick="document.getElementById('line-share-modal').remove()"
         style="padding:8px 16px;border-radius:var(--r);border:1px solid var(--border2);background:transparent;color:var(--text2);cursor:pointer;font-size:13px;font-family:inherit">稍後再說</button>
       <a href="${lineUrl}" target="_blank"
@@ -2694,10 +2733,53 @@ function renderRetires(){
       <td><span class="tag">${r.proj}</span></td>
       <td style="color:var(--text3)">${r.reason||'—'}</td>
       <td style="color:var(--text3)">${r.date||'—'}</td>
-      <td><button class="btn" style="padding:3px 8px;font-size:12px" onclick="printRetireSlip('${r.id}')">🖨 申請單</button></td>
+      <td style="display:flex;gap:6px">
+        <button class="btn" style="padding:3px 8px;font-size:12px" onclick="printRetireSlip('${r.id}')">🖨 申請單</button>
+        <button class="btn" style="padding:3px 8px;font-size:12px;border-color:#16a34a;color:#16a34a" onclick="restoreFromRetire('${r.id}')">↩️ 取消報廢</button>
+      </td>
     </tr>`;
   });
   document.getElementById('retire-tbody').innerHTML=html;
+}
+
+function restoreFromRetire(retireId) {
+  const r = retires.find(x => x.id === retireId);
+  if (!r) return;
+
+  if (!confirm(`確定要取消報廢「${r.name}」(${retireId})？\n\n這筆資產將會：\n・重新加回財產清冊\n・狀態恢復為「在庫」\n・此筆報廢紀錄將被移除`)) return;
+
+  // 檢查財產清冊是否已有相同編號（避免重複，理論上報廢後已從清冊移除）
+  const exists = assets.find(a => a.id === retireId);
+  if (exists) {
+    alert(`⚠️ 財產清冊中已存在編號 ${retireId}，無法還原（可能已被新增資產佔用此編號）。請改用「編輯資產」或聯絡管理員處理。`);
+    return;
+  }
+
+  // 還原資產到財產清冊
+  assets.push({
+    id: retireId,
+    cat: r.cat || (retireId.startsWith('OF') ? '辦公設備' : '工程設備'),
+    sub: r.sub || '',
+    name: r.name,
+    qty: 1,
+    keeper: r.keeper || '',
+    proj: r.proj,
+    loc: r.loc || '',
+    vendor: r.vendor || '',
+    price: r.price || 0,
+    date: r.date_purchase || '',
+    accessory: r.accessory || '',
+    status: '在庫',
+    note: r.note || ''
+  });
+
+  // 從報廢紀錄移除
+  retires = retires.filter(x => x.id !== retireId);
+
+  saveData();
+  updateAll();
+  alert(`✅ 已取消報廢！「${r.name}」(${retireId}) 已恢復至財產清冊，狀態為「在庫」。`);
+  nav('assets');
 }
 
 // ── Export ────────────────────────────────────────────────────
@@ -3493,7 +3575,9 @@ function showLineReceiptNotify(t) {
     <div style="font-size:16px;font-weight:700;color:var(--text);margin-bottom:4px">✅ 入庫完成！</div>
     <div style="font-size:13px;color:var(--text3);margin-bottom:14px">要通知 A 地已完成入庫嗎？</div>
     <div style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);padding:10px 12px;font-size:12px;color:var(--text2);line-height:1.8;margin-bottom:14px;white-space:pre-wrap">${msg}</div>
-    <div style="display:flex;gap:8px;justify-content:flex-end">
+    <div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap">
+      <button id="copy-btn-receipt" onclick="copyMsgToClipboard(${JSON.stringify(msg)}, document.getElementById('copy-btn-receipt'))"
+        style="padding:7px 14px;border-radius:var(--r);border:1px solid var(--border2);background:transparent;color:var(--text2);cursor:pointer;font-size:13px;font-family:inherit">📋 複製訊息</button>
       <button onclick="document.getElementById('line-receipt-modal').remove()"
         style="padding:7px 14px;border-radius:var(--r);border:1px solid var(--border2);background:transparent;color:var(--text2);cursor:pointer;font-size:13px;font-family:inherit">不用了</button>
       <a href="${lineUrl}" target="_blank"
