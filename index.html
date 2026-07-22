@@ -81,7 +81,7 @@ select.filter:focus{outline:none}
 .form-full{grid-column:1/-1}
 .form-group{display:flex;flex-direction:column;gap:4px}
 .form-label{font-size:12px;font-weight:700;color:var(--text3);letter-spacing:.5px;text-transform:uppercase}
-.form-input{background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);color:var(--text);padding:7px 10px;font-size:14px;font-family:inherit}
+.form-input{width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);color:var(--text);padding:7px 10px;font-size:14px;font-family:inherit}
 .form-input:focus{outline:none;border-color:var(--blue)}
 .modal-foot{padding:12px 16px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:8px}
 /* Chart bars */
@@ -314,10 +314,10 @@ select.filter:focus{outline:none}
         <div class="table-wrap" style="max-width:560px">
           <div style="padding:14px 16px;border-bottom:1px solid var(--border)">
             <div style="font-size:12px;font-weight:700;color:var(--text)">填寫資產資料</div>
-            <div style="font-size:11px;color:var(--text3);margin-top:2px">數量填 3，系統自動產生 3 個獨立財產編號</div>
+            <div style="font-size:13px;color:var(--text3);margin-top:2px">數量填 3，系統自動產生 3 個獨立財產編號</div>
           </div>
           <div style="padding:16px">
-            <div class="form-grid">
+            <div class="form-grid" style="grid-template-columns:1fr 1fr 1fr">
               <div class="form-group">
                 <label class="form-label">商品大類</label>
                 <select class="form-input" id="f-cat" onchange="previewIDs()">
@@ -336,13 +336,13 @@ select.filter:focus{outline:none}
                   <option>電力機具/線</option><option>工程消防</option><option>其他</option>
                 </select>
               </div>
-              <div class="form-group form-full">
-                <label class="form-label">品名</label>
-                <input class="form-input" id="f-name" placeholder="例：Dell Latitude 15&quot; 筆電">
-              </div>
               <div class="form-group">
                 <label class="form-label">數量</label>
                 <input class="form-input" id="f-qty" type="number" min="1" value="1" oninput="previewIDs()">
+              </div>
+              <div class="form-group form-full">
+                <label class="form-label">品名</label>
+                <input class="form-input" id="f-name">
               </div>
               <div class="form-group">
                 <label class="form-label">保管人</label>
@@ -358,6 +358,14 @@ select.filter:focus{outline:none}
               <div class="form-group">
                 <label class="form-label">案場位置</label>
                 <input class="form-input" id="f-loc" placeholder="例：辦公室、倉庫">
+              </div>
+              <div class="form-group">
+                <label class="form-label">品牌</label>
+                <input class="form-input" id="f-brand" placeholder="例：Bosch、Apple、HP">
+              </div>
+              <div class="form-group">
+                <label class="form-label">型號</label>
+                <input class="form-input" id="f-model" placeholder="例：GBH 2-26、MacBook Air M2">
               </div>
               <div class="form-group">
                 <label class="form-label">採購廠商</label>
@@ -385,9 +393,9 @@ select.filter:focus{outline:none}
               </div>
             </div>
             <div style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);padding:10px 12px;margin-top:12px">
-              <div style="font-size:10px;font-weight:700;color:var(--text3);letter-spacing:.5px;text-transform:uppercase;margin-bottom:6px">預覽將產生的財產編號</div>
-              <div id="id-preview" style="font-family:'IBM Plex Mono',monospace;font-size:13px;color:var(--blue);line-height:2"></div>
-              <div id="photo-preview" style="font-size:11px;color:var(--text3);margin-top:4px"></div>
+              <div style="font-size:12px;font-weight:700;color:var(--text3);letter-spacing:.5px;text-transform:uppercase;margin-bottom:6px">預覽將產生的財產編號</div>
+              <div id="id-preview" style="font-family:'IBM Plex Mono',monospace;font-size:15px;color:var(--blue);line-height:2"></div>
+              <div id="photo-preview" style="font-size:13px;color:var(--text3);margin-top:4px"></div>
             </div>
             <div style="margin-top:14px;display:flex;gap:8px">
               <button class="btn primary" onclick="saveAsset()">儲存並產生編號</button>
@@ -455,6 +463,14 @@ select.filter:focus{outline:none}
               <div class="form-group">
                 <label class="form-label">單價(未稅)</label>
                 <input class="form-input" id="e-price" type="number">
+              </div>
+              <div class="form-group">
+                <label class="form-label">品牌</label>
+                <input class="form-input" id="e-brand" placeholder="例：Bosch、Apple、HP">
+              </div>
+              <div class="form-group">
+                <label class="form-label">型號</label>
+                <input class="form-input" id="e-model" placeholder="例：GBH 2-26、MacBook Air M2">
               </div>
               <div class="form-group">
                 <label class="form-label">購入日</label>
@@ -571,7 +587,7 @@ select.filter:focus{outline:none}
         <div class="table-wrap">
           <table>
             <thead><tr>
-              <th>財產編號</th><th>品名</th><th>原專案</th><th>報廢原因</th><th>報廢日期</th><th>申請單</th>
+              <th>財產編號</th><th>品名</th><th>原專案</th><th>報廢原因</th><th>報廢日期</th><th>申請單</th><th>簽核單</th>
             </tr></thead>
             <tbody id="retire-tbody"></tbody>
           </table>
@@ -2008,6 +2024,8 @@ function saveAsset() {
       price:parseInt(document.getElementById('f-price').value)||0,
       date:document.getElementById('f-date').value,
       accessory:document.getElementById('f-accessory').value,
+      brand:document.getElementById('f-brand').value,
+      model:document.getElementById('f-model').value,
       qty:1, photo: photo,
       status:'在庫', note:document.getElementById('f-note').value
     });
@@ -2727,7 +2745,7 @@ function reprintSlip(trfId) {
 // ── Retire ────────────────────────────────────────────────────
 function renderRetires(){
   let html='';
-  if(!retires.length){html='<tr><td colspan="6" style="text-align:center;padding:24px;color:var(--text3)">尚無報廢紀錄</td></tr>';}
+  if(!retires.length){html='<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--text3)">尚無報廢紀錄</td></tr>';}
   else retires.forEach(r=>{
     html+=`<tr>
       <td class="mono" style="color:var(--text3)">${r.id}</td>
@@ -2739,9 +2757,90 @@ function renderRetires(){
         <button class="btn" style="padding:3px 8px;font-size:12px" onclick="printRetireSlip('${r.id}')">🖨 申請單</button>
         <button class="btn" style="padding:3px 8px;font-size:12px;border-color:#16a34a;color:#16a34a" onclick="restoreFromRetire('${r.id}')">↩️ 取消報廢</button>
       </td>
+      <td>
+        <div style="display:flex;align-items:center;gap:6px">
+        ${r.formFile
+          ? `<button class="btn" style="padding:3px 8px;font-size:12px;border-color:#2563eb;color:#2563eb" onclick="viewRetireForm('${r.id}')">📄 已上傳・查看</button>
+             <label style="cursor:pointer;display:inline-flex;align-items:center;padding:3px 6px;border-radius:var(--r);border:1px solid var(--border2);font-size:11px;color:var(--text3)" title="重新上傳替換">
+               🔄<input type="file" accept="image/*,application/pdf" style="display:none" onchange="uploadRetireForm('${r.id}', this)">
+             </label>`
+          : `<label style="cursor:pointer;display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:var(--r);border:1px solid var(--border2);font-size:12px;color:var(--text2)">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+              上傳簽核單
+              <input type="file" accept="image/*,application/pdf" style="display:none" onchange="uploadRetireForm('${r.id}', this)">
+            </label>`
+        }
+        </div>
+      </td>
     </tr>`;
   });
   document.getElementById('retire-tbody').innerHTML=html;
+}
+
+async function uploadRetireForm(retireId, input) {
+  const file = input.files[0];
+  if (!file) return;
+  const r = retires.find(x => x.id === retireId);
+  if (!r) return;
+
+  const ext = file.name.split('.').pop().toLowerCase();
+  const filename = `${retireId}.${ext}`;
+  const path = `retire-forms/${filename}`;
+
+  try {
+    const res = await fetch(`${SUPABASE_URL}/storage/v1/object/photos/${path}`, {
+      method: 'POST',
+      headers: {
+        'apikey': SUPABASE_KEY,
+        'Authorization': `Bearer ${SUPABASE_KEY}`,
+        'Content-Type': file.type,
+        'x-upsert': 'true'
+      },
+      body: file
+    });
+
+    if (res.ok) {
+      r.formFile = filename;
+      await saveData();
+      renderRetires();
+      alert(`✅ 簽核單已上傳！(${retireId})`);
+    } else {
+      alert('❌ 上傳失敗，請再試一次');
+    }
+  } catch(e) {
+    alert('❌ 上傳失敗：' + e.message);
+  }
+}
+
+function viewRetireForm(retireId) {
+  const r = retires.find(x => x.id === retireId);
+  if (!r || !r.formFile) return;
+  const ext = r.formFile.split('.').pop().toLowerCase();
+  const url = `${SUPABASE_URL}/storage/v1/object/public/photos/retire-forms/${r.formFile}`;
+
+  if (ext === 'pdf') {
+    // PDF 用瀏覽器原生檢視器，開新分頁
+    window.open(url, '_blank');
+    return;
+  }
+
+  // 圖片用彈出視窗放大顯示
+  const existing = document.getElementById('retire-form-view-modal');
+  if (existing) existing.remove();
+  const overlay = document.createElement('div');
+  overlay.id = 'retire-form-view-modal';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.85);display:flex;align-items:center;justify-content:center;z-index:999;flex-direction:column;gap:12px';
+  overlay.innerHTML = `
+    <img src="${url}" style="max-width:90vw;max-height:80vh;border-radius:8px;box-shadow:0 8px 32px rgba(0,0,0,.5)"
+      onerror="this.style.display='none';this.nextElementSibling.style.display='block'">
+    <div style="display:none;color:#fff;font-size:14px">⚠️ 無法載入簽核單</div>
+    <div style="display:flex;align-items:center;gap:16px">
+      <span style="color:#fff;font-size:12px;opacity:.6">${r.formFile}</span>
+      <button id="retire-form-close-btn" style="padding:6px 18px;background:#fff;color:#111;border:none;border-radius:6px;font-size:13px;cursor:pointer;font-family:inherit">✕ 關閉</button>
+    </div>`;
+  document.body.appendChild(overlay);
+  document.getElementById('retire-form-close-btn').addEventListener('click', () => overlay.remove());
+  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
 }
 
 function restoreFromRetire(retireId) {
@@ -2844,7 +2943,7 @@ function printAssetList() {
       </td>
       <td>${a.sub||a.cat}</td>
       <td style="font-family:monospace">${a.id}</td>
-      <td>${a.name}${a.accessory?`<br><span style="font-size:10px;color:#888">配件：${a.accessory}</span>`:''}</td>
+      <td>${a.name}${a.brand||a.model?`<br><span style="font-size:10px;color:var(--text3)">${[a.brand,a.model].filter(Boolean).join(' · ')}</span>`:''}${a.accessory?`<br><span style="font-size:10px;color:#888">配件：${a.accessory}</span>`:''}</td>
       <td style="text-align:center">${a.qty||1}</td>
       <td>${a.keeper||'未指定'}</td>
       <td>${a.proj}</td>
@@ -2984,6 +3083,8 @@ function loadEditForm(id) {
   document.getElementById('e-qty').value = a.qty||1;
   document.getElementById('e-vendor').value = a.vendor||'';
   document.getElementById('e-price').value = a.price||'';
+  document.getElementById('e-brand').value = a.brand||'';
+  document.getElementById('e-model').value = a.model||'';
   document.getElementById('e-date').value = a.date||'';
   document.getElementById('e-accessory').value = a.accessory||'';
   document.getElementById('e-note').value = a.note||'';
@@ -3009,6 +3110,8 @@ function saveEdit() {
     a.loc       = document.getElementById('e-loc').value;
     a.vendor    = document.getElementById('e-vendor').value;
     a.price     = parseInt(document.getElementById('e-price').value)||0;
+    a.brand     = document.getElementById('e-brand').value;
+    a.model     = document.getElementById('e-model').value;
     a.date      = document.getElementById('e-date').value;
     a.qty       = parseInt(document.getElementById('e-qty').value)||1;
     a.accessory = document.getElementById('e-accessory').value;
@@ -3028,6 +3131,8 @@ function saveEdit() {
   a.qty       = parseInt(document.getElementById('e-qty').value)||1;
   a.vendor    = document.getElementById('e-vendor').value;
   a.price     = parseInt(document.getElementById('e-price').value)||0;
+  a.brand     = document.getElementById('e-brand').value;
+  a.model     = document.getElementById('e-model').value;
   a.date      = document.getElementById('e-date').value;
   a.accessory = document.getElementById('e-accessory').value;
   a.note      = document.getElementById('e-note').value;
