@@ -1712,9 +1712,13 @@ const SB_HEADERS = {
 async function sbGet(key) {
   try {
     const res = await fetch(`${SUPABASE_URL}/rest/v1/app_data?key=eq.${key}&select=value`, {headers: SB_HEADERS});
+    if (!res.ok) throw new Error('HTTP ' + res.status);
     const data = await res.json();
     return data && data[0] ? data[0].value : null;
-  } catch(e) { return null; }
+  } catch(e) {
+    console.error('sbGet failed:', key, e);
+    return undefined; // undefined = 讀取失敗（網路/連線問題），null = 確定資料庫是空的
+  }
 }
 
 async function sbSet(key, value) {
@@ -1728,35 +1732,35 @@ async function sbSet(key, value) {
 }
 
 async function loadData() {
-  try {
-    const val = await sbGet('assets-v1');
-    if (val) {
-      const saved = JSON.parse(val);
-      assets = saved.assets || SEED;
-      transfers = saved.transfers || TRANSFER_SEED;
-      nextId = saved.nextId || {};
-      notifications = saved.notifications || [];
-    } else {
-      assets = [...SEED];
-      transfers = [...TRANSFER_SEED];
-      await saveData();
-    }
-  } catch(e) {
+  const val = await sbGet('assets-v1');
+  if (val === undefined) {
+    alert('⚠️ 資料載入失敗（可能是網路不穩），請重新整理頁面再試一次。\n為了保護雲端資料安全，本次不會做任何存檔動作。');
+    return;
+  }
+  if (val) {
+    const saved = JSON.parse(val);
+    assets = saved.assets || SEED;
+    transfers = saved.transfers || TRANSFER_SEED;
+    nextId = saved.nextId || {};
+    notifications = saved.notifications || [];
+  } else {
+    // val === null，確定是全新資料庫（第一次使用），才建立初始範例資料
     assets = [...SEED];
     transfers = [...TRANSFER_SEED];
+    await saveData();
   }
 
-  try {
-    const rval = await sbGet('retires-v1');
-    if (rval) {
-      const savedRetires = JSON.parse(rval);
-      const seedIds = new Set(RETIRE_SEED.map(x=>x.id));
-      const userRetires = savedRetires.filter(x=>!seedIds.has(x.id));
-      retires = [...RETIRE_SEED, ...userRetires];
-    } else {
-      retires = [...RETIRE_SEED];
-    }
-  } catch(e) {
+  const rval = await sbGet('retires-v1');
+  if (rval === undefined) {
+    alert('⚠️ 報廢紀錄載入失敗（可能是網路不穩），請重新整理頁面再試一次。\n為了保護雲端資料安全，本次不會做任何存檔動作。');
+    return;
+  }
+  if (rval) {
+    const savedRetires = JSON.parse(rval);
+    const seedIds = new Set(RETIRE_SEED.map(x=>x.id));
+    const userRetires = savedRetires.filter(x=>!seedIds.has(x.id));
+    retires = [...RETIRE_SEED, ...userRetires];
+  } else {
     retires = [...RETIRE_SEED];
   }
 
