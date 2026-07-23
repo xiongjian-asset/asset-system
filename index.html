@@ -1723,11 +1723,12 @@ async function sbGet(key) {
 
 async function sbSet(key, value) {
   try {
-    await fetch(`${SUPABASE_URL}/rest/v1/app_data`, {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/app_data`, {
       method: 'POST',
       headers: SB_HEADERS,
       body: JSON.stringify({key, value, updated_at: new Date().toISOString()})
     });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
   } catch(e) { console.error('Supabase save error:', e); throw e; }
 }
 
@@ -1774,6 +1775,7 @@ async function saveData() {
     await sbSet('retires-v1', JSON.stringify(retires));
   } catch(e) {
     console.error('Save failed:', e);
+    alert('⚠️ 存檔失敗，請檢查網路連線後重新整理頁面再操作一次，否則剛剛的異動可能不會被保存。');
     throw e;
   }
 }
