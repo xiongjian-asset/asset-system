@@ -320,20 +320,19 @@ select.filter:focus{outline:none}
             <div class="form-grid" style="grid-template-columns:1fr 1fr 1fr">
               <div class="form-group">
                 <label class="form-label">商品大類</label>
-                <select class="form-input" id="f-cat" onchange="previewIDs()">
+                <select class="form-input" id="f-cat" onchange="updateSubcatDropdowns();previewIDs()">
                   <option>辦公設備</option><option>工程設備</option>
                 </select>
               </div>
               <div class="form-group">
                 <label class="form-label">商品中類</label>
                 <select class="form-input" id="f-subcat" onchange="previewIDs()">
-                  <option>辦公桌</option><option>辦公椅</option><option>桌上型電腦</option>
-                  <option>桌上型螢幕</option><option>平板/筆電</option><option>事務機器</option>
-                  <option>網路設備</option><option>數位產品</option><option>辦公家電</option>
-                  <option>空調設備</option><option>監視設備</option><option>印表機</option>
-                  <option>工程量測</option><option>工程機具</option><option>安全保護</option>
-                  <option>手工工具(電)</option><option>手工工具(非電)</option><option>照明設備</option>
-                  <option>電力機具/線</option><option>工程消防</option><option>其他</option>
+                  <option>辦公桌</option><option>辦公椅</option><option>公文櫃</option>
+                  <option>桌上型電腦</option><option>桌上型螢幕</option><option>平板/筆電</option>
+                  <option>事務機器</option><option>網路設備</option><option>數位產品</option>
+                  <option>辦公家電</option><option>空調設備</option><option>監視設備</option>
+                  <option>印表機</option><option>事務用品</option><option>桌上型電話</option>
+                  <option>其他</option>
                 </select>
               </div>
               <div class="form-group">
@@ -602,6 +601,10 @@ select.filter:focus{outline:none}
         <div><div class="page-title">中類別管理</div><div class="page-sub">新增或刪除辦公／工程設備的中類別</div></div>
       </div>
       <div class="content">
+        <div style="margin-bottom:16px">
+          <button class="btn" onclick="auditCategoryMismatches()">🔍 檢查大類／中類是否對應</button>
+          <div id="cat-audit-result" style="margin-top:10px"></div>
+        </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;width:100%">
 
           <!-- 辦公設備 -->
@@ -1694,10 +1697,12 @@ const RETIRE_SEED = [
 
 // ── State ────────────────────────────────────────────────────
 let assets = [], transfers = [...TRANSFER_SEED], retires = [...RETIRE_SEED];
+let trfNextId = null; // 調撥單號持久計數器，取代舊版「transfers.length+1」的不安全算法
 let nextId = {"ENA":27, "ENB":10, "ENC":38, "END":138, "ENE":20, "ENF":7, "ENG":15, "ENH":44, "ENI":5, "ENJ":8, "ENK":4, "ENL":45, "ENM":3, "OFA":89, "OFB":187, "OFC":68, "OFD":29, "OFE":20, "OFF":6, "OFG":7, "OFH":12, "OFI":23, "OFJ":21, "OFK":11, "OFL":18, "OFN":31, "OFO":35, "OFP":14};
 let currentPage = 'assets';
 let filteredAssets = [];
 let notifications = [];
+let notifNextId = null; // 通知編號持久計數器，同樣取代舊版「陣列長度」算法
 
 // ── Supabase 設定 ─────────────────────────────────────────────
 const SUPABASE_URL = 'https://okznlrxvacptxvgkanhv.supabase.co';
@@ -1738,17 +1743,66 @@ async function loadData() {
     alert('⚠️ 資料載入失敗（可能是網路不穩），請重新整理頁面再試一次。\n為了保護雲端資料安全，本次不會做任何存檔動作。');
     return;
   }
+  let needsResave = false;
   if (val) {
     const saved = JSON.parse(val);
     assets = saved.assets || SEED;
     transfers = saved.transfers || TRANSFER_SEED;
     nextId = saved.nextId || {};
     notifications = saved.notifications || [];
+    trfNextId = saved.trfNextId || null;
+    notifNextId = saved.notifNextId || null;
   } else {
     // val === null，確定是全新資料庫（第一次使用），才建立初始範例資料
     assets = [...SEED];
     transfers = [...TRANSFER_SEED];
     await saveData();
+  }
+
+  // 計算目前已用過的最大調撥單號，作為計數器起點（第一次升級、或計數器遺失時）
+  const maxTrfNum = transfers.reduce((max, t) => {
+    const n = parseInt(String(t.id).replace('TRF-', ''), 10);
+    return isNaN(n) ? max : Math.max(max, n);
+  }, 0);
+  if (!trfNextId || trfNextId <= maxTrfNum) {
+    trfNextId = maxTrfNum + 1;
+    needsResave = true;
+  }
+
+  // 自我修復：舊版用「陣列長度」算單號，可能產生重複的調撥單號（例如兩筆都叫 TRF-006）
+  // 這裡找出重複的，除了第一筆保留原號，其餘的都換成新的、唯一的單號
+  const seenTrfIds = new Set();
+  transfers.forEach(t => {
+    if (seenTrfIds.has(t.id)) {
+      t.id = 'TRF-' + String(trfNextId++).padStart(3, '0');
+      needsResave = true;
+    }
+    seenTrfIds.add(t.id);
+  });
+
+  // 通知編號同樣的自我修復邏輯
+  const maxNotifNum = notifications.reduce((max, n) => {
+    const num = parseInt(String(n.id).replace('NTF-', ''), 10);
+    return isNaN(num) ? max : Math.max(max, num);
+  }, 0);
+  if (!notifNextId || notifNextId <= maxNotifNum) {
+    notifNextId = maxNotifNum + 1;
+    needsResave = true;
+  }
+  const seenNotifIds = new Set();
+  notifications.forEach(n => {
+    if (seenNotifIds.has(n.id)) {
+      n.id = 'NTF-' + String(notifNextId++).padStart(3, '0');
+      needsResave = true;
+    }
+    seenNotifIds.add(n.id);
+  });
+
+  if (needsResave) {
+    // 這裡只存 assets-v1（含修好的 transfers/notifications/trfNextId/notifNextId），retires 這時候還沒載入，
+    // 不能呼叫完整的 saveData()，否則會拿還沒載入的舊值覆蓋掉 retires-v1
+    try { await sbSet('assets-v1', JSON.stringify({assets, transfers, nextId, notifications, trfNextId, notifNextId})); }
+    catch(e) { console.error('自動修復單號存檔失敗:', e); }
   }
 
   const rval = await sbGet('retires-v1');
@@ -1771,7 +1825,7 @@ async function loadData() {
 
 async function saveData() {
   try {
-    await sbSet('assets-v1', JSON.stringify({assets, transfers, nextId, notifications}));
+    await sbSet('assets-v1', JSON.stringify({assets, transfers, nextId, notifications, trfNextId, notifNextId}));
     await sbSet('retires-v1', JSON.stringify(retires));
   } catch(e) {
     console.error('Save failed:', e);
@@ -1802,7 +1856,7 @@ function nav(page) {
   if(map[page]!==undefined) items[map[page]].classList.add('active');
   currentPage=page;
   if(page==='assets') filterAssets();
-  if(page==='add') previewIDs();
+  if(page==='add') { updateSubcatDropdowns(); previewIDs(); }
 }
 
 // ── Dashboard ─────────────────────────────────────────────────
@@ -1974,6 +2028,23 @@ const EN_SUB_MAP = {
 function getSubCode(cat, sub) {
   const map = cat.includes('辦公') ? OF_SUB_MAP : EN_SUB_MAP;
   return map[sub] || (cat.includes('辦公') ? 'P' : 'L');
+}
+
+function auditCategoryMismatches() {
+  const bad = assets.filter(a => {
+    const map = (a.cat||'').includes('辦公') ? OF_SUB_MAP : EN_SUB_MAP;
+    return !(a.sub in map);
+  });
+  const resultEl = document.getElementById('cat-audit-result');
+  if (!bad.length) {
+    resultEl.innerHTML = `<div style="color:var(--green);font-size:13px;padding:8px 0">✅ 檢查完成，共 ${assets.length} 筆資產，沒有發現大類／中類對不上的資料。</div>`;
+    return;
+  }
+  resultEl.innerHTML = `<div style="color:var(--red);font-size:13px;font-weight:700;margin-bottom:6px">⚠️ 發現 ${bad.length} 筆大類／中類對不上的資產，建議進「編輯資產」逐筆修正：</div>
+    <div class="table-wrap"><table style="width:100%;font-size:13px">
+      <tr style="background:var(--bg3)"><th style="padding:6px 10px;text-align:left">財產編號</th><th style="padding:6px 10px;text-align:left">品名</th><th style="padding:6px 10px;text-align:left">目前大類</th><th style="padding:6px 10px;text-align:left">目前中類</th></tr>
+      ${bad.map(a=>`<tr><td style="padding:6px 10px" class="mono">${a.id}</td><td style="padding:6px 10px">${a.name||''}</td><td style="padding:6px 10px">${a.cat||''}</td><td style="padding:6px 10px;color:var(--red)">${a.sub||'（空白）'}</td></tr>`).join('')}
+    </table></div>`;
 }
 
 function getNextId(prefix, sub) {
@@ -2322,7 +2393,7 @@ async function saveTransfer(){
       return;
     }
 
-    const trfId='TRF-'+String(transfers.length+1).padStart(3,'0');
+    const trfId='TRF-'+String(trfNextId++).padStart(3,'0');
     const now = new Date();
     const today = now.toISOString().slice(0,10);
     const timeStr = now.toLocaleString('zh-TW', {year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false}).replace(/\//g,'-');
@@ -2334,7 +2405,7 @@ async function saveTransfer(){
 
     // 🔔 產生通知給調入方
     const notif={
-      id:'NTF-'+String(notifications.length+1).padStart(3,'0'),
+      id:'NTF-'+String(notifNextId++).padStart(3,'0'),
       type:'transfer',
       trfId, assetNo:no, name:a.name, from, to,
       date:timeStr, read:false,
@@ -2454,7 +2525,7 @@ async function saveBatchTransfer() {
       if (!a || a.status==='調出中' || a.status==='報廢') return; // 雙重保險
 
       const from = a.proj;
-      const trfId = 'TRF-' + String(transfers.length + createdTransfers.length + 1).padStart(3,'0');
+      const trfId = 'TRF-' + String(trfNextId++).padStart(3,'0');
       const trf = {id:trfId, assetNo:id, name:a.name, from, to, date:today, datetime:timeStr, status:'待確認', reason, batchId};
       transfers.push(trf);
       createdTransfers.push(trf);
@@ -2462,7 +2533,7 @@ async function saveBatchTransfer() {
       a.status = '調出中';
 
       notifications.unshift({
-        id: 'NTF-' + String(notifications.length+1).padStart(3,'0'),
+        id: 'NTF-' + String(notifNextId++).padStart(3,'0'),
         type:'transfer', trfId, assetNo:id, name:a.name, from, to,
         date: timeStr, read:false,
         msg: `【批次調撥】${from} 已將「${a.name}」(${id}) 調撥至 ${to}，請確認收件。`
@@ -3499,14 +3570,19 @@ function deleteCategory(type, name) {
 }
 
 function updateSubcatDropdowns() {
-  // 更新新增資產的中類下拉
+  // 更新新增資產的中類下拉 —— 依目前選的「商品大類」只顯示對應的中類，不再兩邊混在一起
+  const catEl = document.getElementById('f-cat');
   const subcat = document.getElementById('f-subcat');
-  if (subcat) {
-    const allOF = Object.keys(OF_SUB_MAP);
-    const allEN = Object.keys(EN_SUB_MAP);
-    subcat.innerHTML = [...allOF, ...allEN].map(n=>`<option>${n}</option>`).join('');
+  if (subcat && catEl) {
+    const isOffice = catEl.value.includes('辦公');
+    const map = isOffice ? OF_SUB_MAP : EN_SUB_MAP;
+    const prevValue = subcat.value;
+    const names = Object.keys(map);
+    subcat.innerHTML = names.map(n=>`<option>${n}</option>`).join('');
+    // 如果原本選的中類在新清單裡還在，就保留；否則預設選第一個
+    subcat.value = names.includes(prevValue) ? prevValue : names[0];
   }
-  // 更新依類別篩選下拉
+  // 更新依類別篩選下拉（這個本來就是兩邊都列出來，用 optgroup 分組，不受大類影響，維持原樣）
   const filterSub = document.getElementById('filter-sub');
   if (filterSub) {
     filterSub.innerHTML = `<option value="">依類別</option>
