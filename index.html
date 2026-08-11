@@ -1925,6 +1925,19 @@ function updateDashboard() {
 }
 
 // ── Asset list ────────────────────────────────────────────────
+// 把文字安全地放進 onclick="...('文字')" 這種寫法裡用，同時處理兩層跳脫：
+// 1) 讓文字本身如果有單引號，不會把 JS 字串提前截斷
+// 2) 讓文字本身如果有雙引號，不會把 HTML 屬性本身提前截斷（例如品名裡的 20"、18" 这種吋數標示）
+function escAttr(s) {
+  return String(s||'')
+    .replace(/\\/g,'\\\\')
+    .replace(/'/g,"\\'")
+    .replace(/&/g,'&amp;')
+    .replace(/"/g,'&quot;')
+    .replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;');
+}
+
 function renderAssets(list) {
   filteredAssets=list;
   document.getElementById('asset-list-sub').textContent=`共 ${list.length} 件設備`;
@@ -1966,7 +1979,7 @@ function renderAssets(list) {
             <img id="photo-${a.id}"
               src="${SUPABASE_URL}/storage/v1/object/public/photos/${a.photo}"
               style="width:48px;height:48px;object-fit:cover;border-radius:4px;cursor:pointer;border:1px solid var(--border)"
-              onclick="viewNetworkPhoto('${a.photo}','${(a.name||'').replace(/'/g,"\\'")}')"
+              onclick="viewNetworkPhoto('${a.photo}','${escAttr(a.name)}')"
               onerror="this.style.display='none';document.getElementById('upload-${a.id}').style.display='inline-flex'"
               title="點擊放大">
             ` : ''}
