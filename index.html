@@ -1937,7 +1937,7 @@ function renderAssets(list) {
       html+=`<tr>
         <td><input type="checkbox" class="row-check" data-id="${a.id}" onchange="updateSelection()" style="width:16px;height:16px;cursor:pointer;accent-color:var(--blue)"></td>
         <td><span class="tag">${a.sub||a.cat}</span></td>
-        <td><span class="mono" style="color:var(--blue)">${a.id}</span></td>
+        <td><span class="mono" style="color:var(--blue);cursor:pointer;text-decoration:underline;text-decoration-color:transparent" onmouseover="this.style.textDecorationColor='var(--blue)'" onmouseout="this.style.textDecorationColor='transparent'" onclick="nav('edit');setTimeout(()=>loadEditForm('${a.id}'),50)" title="點擊編輯">${a.id}</span></td>
         <td style="max-width:180px">
           <div style="display:flex;align-items:center;gap:6px">
             <span style="color:var(--text);font-size:14px;word-break:break-all;white-space:normal;line-height:1.4">${a.name}</span>
@@ -1956,34 +1956,10 @@ function renderAssets(list) {
         <td>${a.proj}</td>
         <td style="color:var(--text3)">${a.loc||'—'}</td>
         <td><span class="badge ${STATUS_CLASS[a.status]||'b-gray'}">${a.status}</span></td>
-        <td>
-          <input type="date" value="${a.date||''}"
-            style="background:transparent;border:1px solid transparent;border-radius:var(--r);color:var(--text2);padding:3px 7px;font-size:14px;font-family:inherit;outline:none;"
-            onfocus="this.style.borderColor='var(--border2)';this.style.background='var(--bg3)'"
-            onblur="this.style.borderColor='transparent';this.style.background='transparent';updateField('${a.id}','date',this.value)"
-          >
-        </td>
-        <td>
-          <input type="number" value="${a.price||''}" placeholder="0"
-            style="background:transparent;border:1px solid transparent;border-radius:var(--r);color:var(--text2);padding:3px 7px;font-size:14px;font-family:inherit;width:100px;outline:none;"
-            onfocus="this.style.borderColor='var(--border2)';this.style.background='var(--bg3)'"
-            onblur="this.style.borderColor='transparent';this.style.background='transparent';updateField('${a.id}','price',this.value)"
-          >
-        </td>
-        <td>
-          <input type="text" value="${a.vendor||''}" placeholder="廠商名稱"
-            style="background:transparent;border:1px solid transparent;border-radius:var(--r);color:var(--text2);padding:3px 7px;font-size:14px;font-family:inherit;width:110px;outline:none;"
-            onfocus="this.style.borderColor='var(--border2)';this.style.background='var(--bg3)'"
-            onblur="this.style.borderColor='transparent';this.style.background='transparent';updateField('${a.id}','vendor',this.value)"
-          >
-        </td>
-        <td>
-          <input type="text" value="${a.note||''}" placeholder="輸入備註…"
-            style="background:transparent;border:1px solid transparent;border-radius:var(--r);color:var(--text2);padding:3px 7px;font-size:14px;font-family:inherit;width:130px;outline:none;"
-            onfocus="this.style.borderColor='var(--border2)';this.style.background='var(--bg3)'"
-            onblur="this.style.borderColor='transparent';this.style.background='transparent';updateNote('${a.id}',this.value)"
-          >
-        </td>
+        <td style="color:var(--text2);font-size:14px">${a.date||'—'}</td>
+        <td style="color:var(--text2);font-size:14px">${a.price ? a.price.toLocaleString() : '—'}</td>
+        <td style="color:var(--text2);font-size:14px">${a.vendor||'—'}</td>
+        <td style="color:var(--text2);font-size:14px">${a.note||'—'}</td>
         <td>
           <div style="display:flex;align-items:center;gap:6px">
             ${a.photo ? `
