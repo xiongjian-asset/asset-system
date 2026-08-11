@@ -586,7 +586,7 @@ select.filter:focus{outline:none}
         <div class="table-wrap">
           <table>
             <thead><tr>
-              <th>財產編號</th><th>品名</th><th>原專案</th><th>報廢原因</th><th>報廢日期</th><th>申請單</th><th>簽核單</th>
+              <th>報廢單號</th><th>財產編號</th><th>品名</th><th>原專案</th><th>報廢原因</th><th>報廢日期</th><th>申請單</th><th>簽核單</th>
             </tr></thead>
             <tbody id="retire-tbody"></tbody>
           </table>
@@ -2163,9 +2163,20 @@ function confirmRetire() {
   // 從清冊移除
   assets = assets.filter(x=>x.id!==id);
 
+  // 產生報廢單號：YYYYMMDD + 當天序號3碼（例如 20260811001）
+  const now = new Date();
+  const y=now.getFullYear(), mo=String(now.getMonth()+1).padStart(2,'0'), d=String(now.getDate()).padStart(2,'0');
+  const datePrefix = `${y}${mo}${d}`;
+  const todaySeqs = retires
+    .filter(r => r.retireNo && r.retireNo.startsWith(datePrefix))
+    .map(r => parseInt(r.retireNo.slice(8), 10))
+    .filter(n => !isNaN(n));
+  const nextSeq = (todaySeqs.length ? Math.max(...todaySeqs) : 0) + 1;
+  const retireNo = datePrefix + String(nextSeq).padStart(3, '0');
+
   // 加入報廢紀錄（保留完整資產資訊以便日後還原）
   const rec = {
-    id, name:a.name, proj:a.proj, reason, flow,
+    id, retireNo, name:a.name, proj:a.proj, reason, flow,
     cat:a.cat, sub:a.sub, qty:a.qty||1,
     keeper:a.keeper, loc:a.loc, vendor:a.vendor,
     price:a.price, date_purchase:a.date,
@@ -2215,7 +2226,7 @@ function printRetireSlip(id) {
     </style>
     <div style="text-align:center;margin-bottom:16px">
       <div style="font-size:22px;font-weight:700;letter-spacing:3px">財產報廢申請單</div>
-      <div style="font-size:12px;color:#666;margin-top:6px">填表日期：${y} 年 ${mo} 月 ${d} 日</div>
+      <div style="font-size:12px;color:#666;margin-top:6px">報廢單號：${r.retireNo||'—'}　｜　填表日期：${y} 年 ${mo} 月 ${d} 日</div>
     </div>
     <hr style="border:none;border-top:2px solid #111;margin-bottom:16px">
     <table style="width:100%;border-collapse:collapse;margin-bottom:12px">
@@ -2840,9 +2851,16 @@ function reprintSlip(trfId) {
 // ── Retire ────────────────────────────────────────────────────
 function renderRetires(){
   let html='';
-  if(!retires.length){html='<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--text3)">尚無報廢紀錄</td></tr>';}
-  else retires.forEach(r=>{
+  if(!retires.length){html='<tr><td colspan="8" style="text-align:center;padding:24px;color:var(--text3)">尚無報廢紀錄</td></tr>';}
+  else {
+    const sorted = retires.slice().sort((a,b) => {
+      const byDate = (b.date||'').localeCompare(a.date||'');
+      if (byDate !== 0) return byDate;
+      return (b.retireNo||'').localeCompare(a.retireNo||'');
+    });
+    sorted.forEach(r=>{
     html+=`<tr>
+      <td class="mono" style="color:var(--text3)">${r.retireNo||'—'}</td>
       <td class="mono" style="color:var(--text3)">${r.id}</td>
       <td>${r.name}</td>
       <td><span class="tag">${r.proj}</span></td>
@@ -2868,7 +2886,8 @@ function renderRetires(){
         </div>
       </td>
     </tr>`;
-  });
+    });
+  }
   document.getElementById('retire-tbody').innerHTML=html;
 }
 
@@ -3214,7 +3233,7 @@ function printLabels() {
   }
   if (!list.length) { alert('沒有可列印的資產'); return; }
 
-  // 依照標籤貼紙規格：3欄 x 10列，每張 66mm x 27.5mm
+  // 依照標籤貼紙規格（鶴屋 (007)C3070）：3欄 x 10列，每張 70mm x 29.7mm，滿版無邊界
   const labelsHtml = list.map(a => `
     <div class="label">
       <div class="label-row"><span class="label-key">財產名稱：</span><span class="label-val">${a.name}</span></div>
@@ -3229,18 +3248,18 @@ function printLabels() {
 
   const win = window.open('', '_blank');
   win.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8">
-    <title>財產標籤</title>
+    <title></title>
     <style>
       *{box-sizing:border-box;margin:0;padding:0;font-family:'Microsoft JhengHei',sans-serif}
-      @page{ size: A4 portrait; margin: 11mm 7mm 0mm 7mm; }
+      @page{ size: A4 portrait; margin: 0; }
       body{ }
       .sheet{
         display:grid;
-        grid-template-columns: repeat(3, 66mm);
-        grid-auto-rows: 27.5mm;
+        grid-template-columns: repeat(3, 70mm);
+        grid-auto-rows: 29.7mm;
       }
       .label{
-        width:66mm; height:27.5mm;
+        width:70mm; height:29.7mm;
         padding:2mm 3mm;
         box-sizing:border-box;
         display:flex;
