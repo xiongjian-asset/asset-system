@@ -1716,7 +1716,7 @@ const SB_HEADERS = {
 
 async function sbGet(key) {
   try {
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/app_data?key=eq.${key}&select=value`, {headers: SB_HEADERS});
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/app_data?key=eq.${key}&select=value`, {headers: SB_HEADERS, cache: 'no-store'});
     if (!res.ok) throw new Error('HTTP ' + res.status);
     const data = await res.json();
     return data && data[0] ? data[0].value : null;
@@ -3325,49 +3325,43 @@ function loadEditForm(id) {
   document.getElementById('edit-sub').textContent = `正在編輯：${a.id} ${a.name}`;
 }
 
-function saveEdit() {
+async function saveEdit() {
   if (!editingId) return;
   const a = assets.find(x=>x.id===editingId);
   if (!a) return;
 
   const newStatus = document.getElementById('e-status').value;
+  const formValues = {
+    name:      document.getElementById('e-name').value,
+    keeper:    document.getElementById('e-keeper').value,
+    proj:      document.getElementById('e-proj').value,
+    loc:       document.getElementById('e-loc').value,
+    vendor:    document.getElementById('e-vendor').value,
+    price:     parseInt(document.getElementById('e-price').value)||0,
+    brand:     document.getElementById('e-brand').value,
+    model:     document.getElementById('e-model').value,
+    date:      document.getElementById('e-date').value,
+    qty:       parseInt(document.getElementById('e-qty').value)||1,
+    accessory: document.getElementById('e-accessory').value,
+    note:      document.getElementById('e-note').value
+  };
+  const applyFields = (asset, includeStatus) => {
+    Object.assign(asset, formValues);
+    if (includeStatus) asset.status = newStatus;
+  };
 
   // 如果狀態改為報廢，走報廢流程
   if (newStatus === '報廢' && a.status !== '報廢') {
-    // 先儲存其他欄位（不含status，報廢流程會處理）
-    a.name      = document.getElementById('e-name').value;
-    a.keeper    = document.getElementById('e-keeper').value;
-    a.proj      = document.getElementById('e-proj').value;
-    a.loc       = document.getElementById('e-loc').value;
-    a.vendor    = document.getElementById('e-vendor').value;
-    a.price     = parseInt(document.getElementById('e-price').value)||0;
-    a.brand     = document.getElementById('e-brand').value;
-    a.model     = document.getElementById('e-model').value;
-    a.date      = document.getElementById('e-date').value;
-    a.qty       = parseInt(document.getElementById('e-qty').value)||1;
-    a.accessory = document.getElementById('e-accessory').value;
-    a.note      = document.getElementById('e-note').value;
+    // 先儲存其他欄位（不含status，報廢流程會處理），用安全合併存檔避免蓋掉別的異動
+    await safePatchAsset(editingId, asset => applyFields(asset, false));
     const retireId = editingId;
-    saveData();
     clearEditForm();
     retireAsset(retireId);
     return;
   }
 
-  a.name      = document.getElementById('e-name').value;
-  a.keeper    = document.getElementById('e-keeper').value;
-  a.proj      = document.getElementById('e-proj').value;
-  a.loc       = document.getElementById('e-loc').value;
-  a.status    = newStatus;
-  a.qty       = parseInt(document.getElementById('e-qty').value)||1;
-  a.vendor    = document.getElementById('e-vendor').value;
-  a.price     = parseInt(document.getElementById('e-price').value)||0;
-  a.brand     = document.getElementById('e-brand').value;
-  a.model     = document.getElementById('e-model').value;
-  a.date      = document.getElementById('e-date').value;
-  a.accessory = document.getElementById('e-accessory').value;
-  a.note      = document.getElementById('e-note').value;
-  saveData(); updateAll();
+  await safePatchAsset(editingId, asset => applyFields(asset, true));
+  updateAll();
   document.getElementById('edit-sub').textContent = `✅ ${a.id} 已儲存！`;
   clearEditForm();
   nav('assets');
