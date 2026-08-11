@@ -229,9 +229,9 @@ select.filter:focus{outline:none}
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.59 13.41L11 4H4v7l9.59 9.59a2 2 0 002.82 0l4.18-4.18a2 2 0 000-2.82z"/><circle cx="7.5" cy="7.5" r="1"/></svg>
             列印標籤
           </button>
-          <button class="btn" onclick="exportExcel()">
+          <button class="btn" id="export-excel-btn" onclick="exportExcel()">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-            下載 Excel
+            <span id="export-excel-btn-label">下載 Excel</span>
           </button>
           <button class="btn primary" onclick="nav('add')">+ 新增</button>
         </div>
@@ -1834,6 +1834,29 @@ async function saveData() {
   }
 }
 
+// 針對「只改單一資產的一個欄位」這種操作（例如上傳照片），先重新抓一次雲端最新資料再存，
+// 避免這個分頁記憶體裡比較舊的資料，把其他分頁/裝置在這段期間新增的異動蓋掉。
+async function safePatchAsset(id, patchFn) {
+  // 先更新這個分頁自己畫面上看到的資料，確保操作有立即反應
+  const localAsset = assets.find(x => x.id === id);
+  if (localAsset) patchFn(localAsset);
+
+  try {
+    const latestVal = await sbGet('assets-v1');
+    if (latestVal === undefined) throw new Error('讀取最新資料失敗');
+    const latest = latestVal ? JSON.parse(latestVal) : { assets, transfers, nextId, notifications, trfNextId, notifNextId };
+    const latestAssets = latest.assets || [];
+    const idx = latestAssets.findIndex(x => x.id === id);
+    if (idx > -1) patchFn(latestAssets[idx]);
+    else if (localAsset) latestAssets.push({ ...localAsset });
+    await sbSet('assets-v1', JSON.stringify({ ...latest, assets: latestAssets }));
+  } catch(e) {
+    console.error('安全合併存檔失敗，改用一般存檔:', e);
+    // 保底：至少把這個分頁看到的完整狀態存回去，比完全沒存到好
+    await saveData();
+  }
+}
+
 function updateAll() {
   updateDashboard();
   renderAssets(assets);
@@ -1966,7 +1989,7 @@ function renderAssets(list) {
             <img id="photo-${a.id}"
               src="${SUPABASE_URL}/storage/v1/object/public/photos/${a.id}.jpg"
               style="width:48px;height:48px;object-fit:cover;border-radius:4px;cursor:pointer;border:1px solid var(--border)"
-              onclick="viewNetworkPhoto('${a.id}.jpg')"
+              onclick="viewNetworkPhoto('${a.id}.jpg','${(a.name||'').replace(/'/g,"\\'")}')"
               onerror="this.style.display='none';document.getElementById('upload-${a.id}').style.display='inline-flex'"
               title="點擊放大">
             <label id="upload-${a.id}" style="display:none;cursor:pointer;flex-direction:column;align-items:center;gap:3px;padding:4px 8px;border-radius:var(--r);border:1px solid var(--border2);font-size:11px;color:var(--text2)">
@@ -2154,7 +2177,7 @@ function confirmRetire() {
     cat:a.cat, sub:a.sub, qty:a.qty||1,
     keeper:a.keeper, loc:a.loc, vendor:a.vendor,
     price:a.price, date_purchase:a.date,
-    accessory:a.accessory, note:a.note,
+    accessory:a.accessory, note:a.note, photo:a.photo,
     date:new Date().toISOString().slice(0,10)
   };
   retires.push(rec);
@@ -2225,10 +2248,13 @@ function printRetireSlip(id) {
       <tr>
         <td style="border:1px solid #ccc;padding:8px 12px;background:#f8f8f8;font-weight:700;font-size:13px;vertical-align:top">報廢原由<br><span style="font-size:10px;font-weight:400;color:#888">(附照片)</span></td>
         <td colspan="3" style="border:1px solid #ccc;padding:12px;vertical-align:top">
-          <div style="display:flex;flex-direction:column;gap:10px">
-            <label style="display:flex;align-items:flex-start;gap:8px">${chk(r.reason==='維修不具效益，且逾使用年限')} 維修不具效益，且逾使用年限。</label>
-            <label style="display:flex;align-items:flex-start;gap:8px">${chk(r.reason==='損壞無法修復，且逾使用年限')} 損壞無法修復，且逾使用年限。</label>
-            <label style="display:flex;align-items:flex-start;gap:8px">${chk(isOther)} 其他：${isOther?r.reason:'＿＿＿＿＿＿＿＿＿＿'}</label>
+          <div style="display:flex;gap:16px;align-items:flex-start">
+            <div style="display:flex;flex-direction:column;gap:10px;flex:1">
+              <label style="display:flex;align-items:flex-start;gap:8px">${chk(r.reason==='維修不具效益，且逾使用年限')} 維修不具效益，且逾使用年限。</label>
+              <label style="display:flex;align-items:flex-start;gap:8px">${chk(r.reason==='損壞無法修復，且逾使用年限')} 損壞無法修復，且逾使用年限。</label>
+              <label style="display:flex;align-items:flex-start;gap:8px">${chk(isOther)} 其他：${isOther?r.reason:'＿＿＿＿＿＿＿＿＿＿'}</label>
+            </div>
+            ${r.photo ? `<img src="${SUPABASE_URL}/storage/v1/object/public/photos/${r.photo}" style="width:110px;height:110px;object-fit:cover;border:1px solid #ccc;border-radius:4px;flex-shrink:0" onerror="this.style.display='none'">` : ''}
           </div>
         </td>
       </tr>
@@ -2961,6 +2987,27 @@ function restoreFromRetire(retireId) {
 }
 
 // ── Export ────────────────────────────────────────────────────
+function setExportButtonsLoading(loading) {
+  document.querySelectorAll('button[onclick="exportExcel()"]').forEach(btn => {
+    btn.disabled = loading;
+    btn.style.opacity = loading ? '.6' : '';
+    btn.style.cursor = loading ? 'not-allowed' : '';
+  });
+  const label = document.getElementById('export-excel-btn-label');
+  if (label) label.textContent = loading ? '匯出中…' : '下載 Excel';
+}
+
+function loadScriptOnce(src, globalName) {
+  return new Promise((resolve, reject) => {
+    if (typeof window[globalName] !== 'undefined') return resolve();
+    const script = document.createElement('script');
+    script.src = src;
+    script.onload = () => resolve();
+    script.onerror = () => reject(new Error('載入失敗：' + src));
+    document.head.appendChild(script);
+  });
+}
+
 function exportExcel(){
   const checkedIds = Array.from(document.querySelectorAll('.row-check:checked')).map(c=>c.dataset.id);
   let list;
@@ -2969,30 +3016,137 @@ function exportExcel(){
   } else {
     list = filteredAssets.length ? filteredAssets : assets;
   }
-  const hdr = ['類別','財產編號','品名','配件','數量','保管人','專案','位置','狀態','購入日期','購入金額(未稅)','購入廠商','備註'];
-  const rows = list.map(a=>[
-    a.sub||a.cat, a.id, a.name, a.accessory||'', a.qty||1, a.keeper||'',
-    a.proj, a.loc||'', a.status, a.date||'', a.price||0, a.vendor||'', a.note||''
+  const hdr = ['項次','商品大類','商品中類','財產編號','品名','照片','配件','數量','保管人','專案名稱','案場位置','狀態','備註','購入日期','購入金額(未稅)','採購廠商'];
+  const rows = list.map((a,i)=>[
+    i+1, a.cat||'', a.sub||'', a.id, a.name, '', a.accessory||'', a.qty||1, a.keeper||'',
+    a.proj, a.loc||'', a.status, a.note||'', a.date||'', a.price||0, a.vendor||''
   ]);
 
-  if (typeof XLSX === 'undefined') {
-    // 若 SheetJS 尚未載入，動態載入後再執行
-    const script = document.createElement('script');
-    script.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
-    script.onload = () => doExportExcel(hdr, rows);
-    document.head.appendChild(script);
-  } else {
-    doExportExcel(hdr, rows);
-  }
+  Promise.all([
+    loadScriptOnce('https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js', 'ExcelJS'),
+    loadScriptOnce('https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js', 'JSZip')
+  ]).then(() => doExportExcel(hdr, rows, list))
+    .catch(e => { console.error(e); alert('⚠️ 匯出元件載入失敗，請檢查網路連線後重新整理再試一次。'); });
 }
 
-function doExportExcel(hdr, rows) {
-  const ws = XLSX.utils.aoa_to_sheet([hdr, ...rows]);
-  ws['!cols'] = hdr.map(()=>({wch:14}));
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, '財產清冊');
-  const today = new Date().toISOString().slice(0,10);
-  XLSX.writeFile(wb, `財產清冊_${today}.xlsx`);
+async function doExportExcel(hdr, rows, list) {
+  setExportButtonsLoading(true);
+  try {
+    const wb = new ExcelJS.Workbook();
+    const ws = wb.addWorksheet('財產清冊');
+
+    const HEADER_FONT_COLOR = 'FFFFFFFF';
+    const HEADER_FILL = 'FF1F3864'; // 深藍色標題底色
+    const THIN_BORDER = { style: 'thin', color: { argb: 'FFBFBFBF' } };
+    const FONT_NAME = '標楷體';
+
+    ws.addRow(hdr);
+    rows.forEach(r => ws.addRow(r));
+
+    // 欄寬（依欄位性質分別設定）
+    const colWidths = {
+      '項次':6, '商品大類':12, '商品中類':12, '財產編號':12, '品名':30, '照片':14, '配件':18,
+      '數量':6, '保管人':10, '專案名稱':10, '案場位置':12, '狀態':8, '備註':18,
+      '購入日期':12, '購入金額(未稅)':14, '採購廠商':14
+    };
+    ws.columns = hdr.map(h => ({ width: colWidths[h] || 14 }));
+
+    // 標題列樣式：標楷體、白字、深藍底、置中、粗框
+    const headerRow = ws.getRow(1);
+    headerRow.eachCell(cell => {
+      cell.font = { name: FONT_NAME, bold: true, color: { argb: HEADER_FONT_COLOR }, size: 12 };
+      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: HEADER_FILL } };
+      cell.alignment = { horizontal: 'center', vertical: 'middle' };
+      cell.border = { top: THIN_BORDER, bottom: THIN_BORDER, left: THIN_BORDER, right: THIN_BORDER };
+    });
+    headerRow.height = 22;
+
+    // 資料列樣式：全部套用標楷體、細框，購入金額欄位加千分位格式，照片列加高方便顯示縮圖
+    const priceCol = hdr.indexOf('購入金額(未稅)') + 1;
+    for (let r = 2; r <= rows.length + 1; r++) {
+      const row = ws.getRow(r);
+      row.eachCell({ includeEmpty: true }, cell => {
+        cell.font = { name: FONT_NAME, size: 11 };
+        cell.border = { top: THIN_BORDER, bottom: THIN_BORDER, left: THIN_BORDER, right: THIN_BORDER };
+        cell.alignment = { vertical: 'middle' };
+      });
+      if (priceCol > 0) ws.getCell(r, priceCol).numFmt = '#,##0';
+      row.height = 60;
+    }
+
+    // 購入相關三欄（購入日期／購入金額(未稅)／採購廠商）標題底色改用咖啡色（僅標題列，資料列維持原樣）
+    const COFFEE_FILL = 'FF6F4E37';
+    const coffeeCols = ['購入日期','購入金額(未稅)','採購廠商'].map(h => hdr.indexOf(h) + 1);
+    coffeeCols.forEach(colNum => {
+      if (colNum <= 0) return;
+      const cell = ws.getCell(1, colNum);
+      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COFFEE_FILL } };
+      cell.font = { name: FONT_NAME, bold: true, color: { argb: HEADER_FONT_COLOR }, size: 12 };
+    });
+
+    // 內嵌已上傳的商品照片（只處理有上傳過照片的資產，逐筆抓取失敗不影響其他筆）
+    const photoCol = hdr.indexOf('照片');
+    let hasEmbeddedPhoto = false;
+    if (photoCol > -1) {
+      await Promise.all(list.map(async (a, i) => {
+        if (!a.photo) return;
+        try {
+          const res = await fetch(`${SUPABASE_URL}/storage/v1/object/public/photos/${a.photo}`);
+          if (!res.ok) return;
+          const buffer = await res.arrayBuffer();
+          const ext = (a.photo.split('.').pop() || 'jpeg').toLowerCase();
+          const imgId = wb.addImage({ buffer, extension: ext === 'png' ? 'png' : 'jpeg' });
+          ws.addImage(imgId, {
+            tl: { col: photoCol + 0.05, row: i + 1.05 },
+            ext: { width: 74, height: 74 }
+          });
+          hasEmbeddedPhoto = true;
+        } catch(e) {
+          console.error('匯出照片失敗:', a.id, e);
+        }
+      }));
+    }
+
+    // 凍結標題列 + 自動篩選
+    ws.views = [{ state: 'frozen', ySplit: 1 }];
+    const lastCol = ws.getColumn(hdr.length).letter;
+    ws.autoFilter = `A1:${lastCol}${rows.length + 1}`;
+
+    const today = new Date().toISOString().slice(0,10);
+    let buf = await wb.xlsx.writeBuffer();
+
+    // 圖片改成「不隨工作表列印」：修改內部 drawing XML 的 clientData 設定
+    // （Excel 圖片本身有「列印物件」開關，這裡直接關閉，畫面上看得到、列印時不會印出來，不浪費紙）
+    if (hasEmbeddedPhoto && typeof JSZip !== 'undefined') {
+      try {
+        const zip = await JSZip.loadAsync(buf);
+        const drawingFiles = Object.keys(zip.files).filter(f => /^xl\/drawings\/drawing\d+\.xml$/.test(f));
+        for (const fname of drawingFiles) {
+          let xml = await zip.file(fname).async('string');
+          xml = xml.replace(/<xdr:clientData\s*\/>/g, '<xdr:clientData fPrintsWithSheet="0"/>');
+          zip.file(fname, xml);
+        }
+        buf = await zip.generateAsync({ type: 'arraybuffer' });
+      } catch(e) {
+        console.error('設定圖片不列印時失敗（不影響檔案本身）:', e);
+      }
+    }
+
+    const blob = new Blob([buf], { type: 'application/octet-stream' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `財產清冊_${today}.xlsx`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  } catch(e) {
+    console.error('匯出 Excel 失敗:', e);
+    alert('⚠️ 匯出 Excel 失敗，請重新整理頁面後再試一次。');
+  } finally {
+    setExportButtonsLoading(false);
+  }
 }
 
 function printAssetList() {
@@ -3329,16 +3483,16 @@ async function uploadPhotoToSupabase(id, input) {
       // 更新照片顯示
       const img = document.getElementById(`photo-${id}`);
       const uploadBtn = document.getElementById(`upload-${id}`);
+      const a = assets.find(x=>x.id===id);
       if (img) {
         img.src = `${SUPABASE_URL}/storage/v1/object/public/photos/${filename}?t=${Date.now()}`;
         img.style.display = 'block';
-        img.onclick = () => viewNetworkPhoto(filename);
+        img.onclick = () => viewNetworkPhoto(filename, a ? a.name : '');
       }
       if (uploadBtn) uploadBtn.style.display = 'none';
 
-      // 更新資產資料
-      const a = assets.find(x=>x.id===id);
-      if (a) { a.photo = filename; await saveData(); }
+      // 更新資產資料（用安全合併方式存檔，避免蓋掉其他分頁/裝置這段期間的異動）
+      if (a) { await safePatchAsset(id, asset => { asset.photo = filename; }); }
     } else {
       alert('❌ 上傳失敗，請再試一次');
     }
@@ -3355,7 +3509,7 @@ function savePhotoName(id, filename) {
   saveData(); renderAssets(filteredAssets.length ? filteredAssets : assets);
 }
 
-function viewNetworkPhoto(filename) {
+function viewNetworkPhoto(filename, name) {
   const existing = document.getElementById('photo-view-modal');
   if (existing) existing.remove();
   const url = `${SUPABASE_URL}/storage/v1/object/public/photos/${filename}`;
@@ -3365,6 +3519,7 @@ function viewNetworkPhoto(filename) {
   overlay.innerHTML = `
     <img src="${url}" style="max-width:90vw;max-height:80vh;border-radius:8px;box-shadow:0 8px 32px rgba(0,0,0,.5)">
     <div style="display:flex;align-items:center;gap:16px">
+      <span style="color:#fff;font-size:14px;font-weight:700">${name || ''}</span>
       <span style="color:#fff;font-size:12px;opacity:.6">${filename}</span>
       <button onclick="closePhotoModal()" style="padding:6px 18px;background:#fff;color:#111;border:none;border-radius:6px;font-size:13px;cursor:pointer;font-family:inherit">✕ 關閉</button>
     </div>
