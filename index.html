@@ -3057,6 +3057,8 @@ function printSummary() {
     </body></html>`);
   win.document.close();
 }
+
+function printLabels() {
   const checkedIds = Array.from(document.querySelectorAll('.row-check:checked')).map(c=>c.dataset.id);
   let list;
   if (checkedIds.length > 0) {
